@@ -1,13 +1,15 @@
 from __future__ import print_function
-import argparse
-import imp
-import numpy as np
-from keras.utils.np_utils import to_categorical
-from numpy.random.mtrand import shuffle
-import tensorflow as tf
-import random as rn
 import os
 import csv
+import imp
+import numpy as np
+import random as rn
+import argparse
+import tensorflow as tf
+
+from keras.utils.np_utils import to_categorical
+from numpy.random.mtrand import shuffle
+from keras import backend as K
 
 from sklearn.model_selection import StratifiedKFold
 from keras.callbacks import EarlyStopping, TensorBoard
@@ -28,11 +30,8 @@ def main(args):
     os.environ['PYTHONHASHSEED'] = '0'
     np.random.seed(config_module.N_SEED)
     rn.seed(config_module.N_SEED)
-
-    session_conf = tf.ConfigProto(
-        intra_op_parallelism_threads=1,
-        inter_op_parallelism_threads=1
-    )
+    session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+    tf.set_random_seed(config_module.N_SEED)
 
 
     paths = config_module.path_files
@@ -66,15 +65,12 @@ def main(args):
     print("Performing k-fold cross validation")
     skf = StratifiedKFold(n_splits=n_folds, shuffle=True, random_state=config_module.N_SEED)
 
-
     cv_test_bac = np.zeros((n_folds,))
     cv_test_sens = np.zeros((n_folds,))
     cv_test_spec = np.zeros((n_folds,))
     cv_error_rate = np.zeros((n_folds,))
 # ---------------------------------------------------------------
-    i = 0
-    for train_index, test_index in skf.split(labels, labels):
-        tf.set_random_seed(config_module.N_SEED)
+    for i, (train_index, test_index) in enumerate(skf.split(labels, labels)):
         sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
         K.set_session(sess)
 
@@ -116,7 +112,7 @@ def main(args):
             batch_size=batch_size)
 
         print("")
-        print("VALIDATION/TEST")  # No Augmentation
+        print("TEST")
         test_datagen = DataGenerator(do_ZMUV=do_zmuv,
                                      image_shape=image_dimension)
 
@@ -138,15 +134,13 @@ def main(args):
 
         tb = TensorBoard(log_dir='./logs/run_'+str(i))
 
-        #----------------- Early stopping ---------------------
-        earlyStopping=EarlyStopping(monitor='val_loss', patience=10, verbose=1, mode='auto')
         #-------------------------------------------------------
         model.fit_generator(train_generator,
                             steps_per_epoch=nb_train_samples/batch_size,
                             epochs=nb_epoch,
                             validation_data=test_generator,
                             validation_steps=nb_test_samples/batch_size,
-			                callbacks=[tb, earlyStopping],
+			                callbacks=[tb],
                             verbose=1)
 
         # ----------------------- Testing -----------------------
@@ -191,9 +185,9 @@ def main(args):
         cv_error_rate[i] = error_rate
         model.save('./models/model_%d.h5' % i)
 
-        sess.close()
-
+        tf.reset_default_graph()
         i += 1
+
     print("")
     print("")
     print("Cross-validation balanced acc: %.4f +- %.4f" % (cv_test_bac.mean(), cv_test_bac.std()))
