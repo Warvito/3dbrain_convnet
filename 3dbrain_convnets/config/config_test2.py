@@ -1,3 +1,6 @@
+
+experiment_name = "TEST_1"
+
 path_files = {
     "raw_images_dir": "./example/data_test/DATASET_1/", # Path to the directory with the raw data (.nii or .img and .hdr). Path used in create_dataset.py.
     "labels_file": "./example/data_test/DATASET_1/labels_dataset1.csv", # Path to the csv with the labels (need to be sorted as the raw data at the directory). Path used in create_dataset.py.
