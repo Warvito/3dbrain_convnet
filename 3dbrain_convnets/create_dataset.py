@@ -7,7 +7,7 @@ import argparse
 import numpy as np
 import nibabel as nib
 
-from keras_extensions.preprocessing_neuroimage import sort_nicely
+from keras_extensions.utils import sort_nicely
 
 
 def create_npy(args):
@@ -28,7 +28,7 @@ def create_npy(args):
 
     print("Saving 3d images using .npz fromat for experiment: ", experiment_name)
 
-    save_dir = "./experiments_files/" + experiment_name + "/img_npz/"
+    save_dir = "./experiments_files/" + experiment_name + "/CNN/img_npz/"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 

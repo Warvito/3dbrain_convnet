@@ -9,7 +9,7 @@ import nibabel as nib
 
 
 
-from keras_extensions.preprocessing_neuroimage import sort_nicely
+from keras_extensions.utils import sort_nicely
 
 def create_kernel(args):
     config_name = args.config_name

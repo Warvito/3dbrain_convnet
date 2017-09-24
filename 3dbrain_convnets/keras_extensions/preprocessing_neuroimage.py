@@ -348,6 +348,8 @@ class DataGenerator(object):
                  streching_z_range=0.,
                  zoom_range=0.,
                  channel_shift_range=0.,
+                 gaussian_noise=0.,
+                 eq_prob=0.,
                  fill_mode='constant',
                  cval=0.,
                  order=0,
@@ -368,6 +370,8 @@ class DataGenerator(object):
         self.height_shift_range = height_shift_range
         self.depth_shift_range = depth_shift_range
         self.channel_shift_range = channel_shift_range
+        self.gaussian_noise = gaussian_noise
+        self.eq_prob = eq_prob
         self.fill_mode = fill_mode
         self.cval = cval
         self.order = order
@@ -378,12 +382,12 @@ class DataGenerator(object):
                              'column) or "th" (channel before row and column). '
                              'Received arg: ', dim_ordering)
         self.dim_ordering = dim_ordering
-        if dim_ordering == 'channels_first':
+        if dim_ordering == 'th':
             self.channel_index = 1
             self.row_index = 2
             self.col_index = 3
             self.dep_index = 4
-        if dim_ordering == 'channels_last':
+        if dim_ordering == 'tf':
             self.channel_index = 4
             self.row_index = 1
             self.col_index = 2
@@ -564,6 +568,33 @@ class DataGenerator(object):
 
         if self.channel_shift_range != 0:
             x = random_channel_shift(x, self.channel_shift_range, img_channel_index)
+
+        if self.gaussian_noise != 0:
+            x = add_gaussian_noise(x,self.gaussian_noise)
+
+        prob = np.random.uniform(0,1)
+        if prob < self.eq_prob:
+            x = adaptive_equalization(x)
+
+        prob = np.random.uniform(0,1)
+        if prob < self.eq_prob:
+            x = equalize_histogram(x)
+
+        prob = np.random.uniform(0,1)
+        if prob < self.eq_prob:
+            x = contrast_stretching(x)
+
+        prob = np.random.uniform(0,1)
+        if prob < self.eq_prob:
+            x = gaussian_filter(x, sigma=2)
+
+        prob = np.random.uniform(0,1)
+        if prob < self.eq_prob:
+            x = average_filter(x, sigma=(2,2))
+
+        prob = np.random.uniform(0,1)
+        if prob < self.eq_prob:
+            x = median_filter(x, sigma=2)
 
         return x
 

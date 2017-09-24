@@ -34,25 +34,26 @@ batch_size = 2
 nb_epoch = 20
 
 # Dimension of each volume in voxels
-image_dimension = (57, 67, 56)
+image_dimension = (95, 133, 104)
 
 # REAL TIME AUGMENTATION PARAMETERS
 # Set everything 0. for no augmentation
-rotation_x_range = 30
-rotation_y_range = 30
-rotation_z_range = 30
-streching_x_range = 0.1
-streching_y_range = 0.1
-streching_z_range = 0.1
-width_shift_range = 0.2
-height_shift_range = 0.2
-depth_shift_range = 0.2
-zoom_range = 0.3
-channel_shift_range = 0.1
+rotation_x_range = 0
+rotation_y_range = 0
+rotation_z_range = 0
 
-cropping_shape = (140,240,210)
-occlusion_size = 10.,
-noise_sigma = 0.1,
+width_shift_range = 0
+height_shift_range = 0
+depth_shift_range = 0
+
+streching_x_range = 0
+streching_y_range = 0
+streching_z_range = 0
+
+zoom_range = 0
+channel_shift_range = 0
+gaussian_noise = 0
+eq_prob = 0
 
 
 def get_model():

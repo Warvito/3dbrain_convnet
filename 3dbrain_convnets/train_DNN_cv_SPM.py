@@ -1,46 +1,35 @@
 from __future__ import print_function
+
 import os
 import csv
 import imp
 import numpy as np
-import random as rn
+import random
 import argparse
 import tensorflow as tf
 
-from keras.utils.np_utils import to_categorical
-from numpy.random.mtrand import shuffle
-from keras import backend as K
-
 from sklearn.model_selection import StratifiedKFold
-from keras.callbacks import EarlyStopping, TensorBoard
-
-from keras_extentions.preprocessing_neuroimage import DataGenerator
+from keras_extensions.preprocessing_neuroimage import DataGenerator
+from keras.callbacks import TensorBoard
 from keras import backend as K
+from sklearn.metrics import confusion_matrix
 
 
 def main(args):
     config_name = args.config_name
+
     try:
-        config_module = imp.load_source('config', "./config/" + config_name + ".py")
+        config_module = imp.load_source('config', config_name)
+
     except IOError:
-        print(
-            "Cannot open {}. Please specify the correct name of the configuration file (at the directory ./config). Example: python train.py config_test".format(
-                config_name))
+        print('Cannot open ', config_name,
+              '. Please specify the correct path of the configuration file. Example: python create_dataset.py ./config/config_test.py')
 
-    os.environ['PYTHONHASHSEED'] = '0'
-    np.random.seed(config_module.N_SEED)
-    rn.seed(config_module.N_SEED)
-    session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
-    tf.set_random_seed(config_module.N_SEED)
-
-
+    N_SEED = config_module.N_SEED
+    experiment_name = config_module.experiment_name
+    img_dir = "./experiments_files/" + experiment_name + "/CNN/img_npz/"
     paths = config_module.path_files
-    img_dir = paths["npy_dir"]
     labels_file = paths["labels_file"]
-
-    print("Loading data from : ", img_dir)
-    labels = np.genfromtxt(labels_file, delimiter=',', dtype='int8')
-
     n_folds = config_module.n_folds
     nb_classes = config_module.nb_classes
     batch_size = config_module.batch_size
@@ -59,6 +48,18 @@ def main(args):
     depth_shift_range = config_module.depth_shift_range
     zoom_range = config_module.zoom_range
     channel_shift_range = config_module.channel_shift_range
+    gaussian_noise = config_module.gaussian_noise
+    eq_prob = config_module.eq_prob
+
+    os.environ['PYTHONHASHSEED'] = '0'
+    random.seed(N_SEED)
+    np.random.seed(N_SEED)
+
+    session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+    tf.set_random_seed(N_SEED)
+
+    print("Loading data from : ", img_dir)
+    labels = np.genfromtxt(labels_file, delimiter=',', dtype='int8')
 
 # -----------------CV VARIABLES ---------------------------------
     print("")
@@ -70,7 +71,7 @@ def main(args):
     cv_test_spec = np.zeros((n_folds,))
     cv_error_rate = np.zeros((n_folds,))
 # ---------------------------------------------------------------
-    for i, (train_index, test_index) in enumerate(skf.split(labels, labels)):
+    for i_fold, (train_index, test_index) in enumerate(skf.split(labels, labels)):
         sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
         K.set_session(sess)
 
@@ -78,7 +79,7 @@ def main(args):
         nb_test_samples = len(test_index)
 
         print("")
-        print("k-fold: ", i + 1)
+        print("k-fold: ", i_fold + 1)
         print("")
         print("Building model")
         model = config_module.get_model()
@@ -103,7 +104,9 @@ def main(args):
                                       height_shift_range=height_shift_range,
                                       depth_shift_range=depth_shift_range,
                                       zoom_range=zoom_range,
-                                      channel_shift_range=channel_shift_range)
+                                      channel_shift_range=channel_shift_range,
+                                      gaussian_noise=gaussian_noise,
+                                      eq_prob=eq_prob)
 
         train_generator = train_datagen.flow_from_directory(
             img_dir,
@@ -132,7 +135,10 @@ def main(args):
         print("")
         print("Compiling....")
 
-        tb = TensorBoard(log_dir='./logs/run_'+str(i))
+        if not os.path.exists("./experiments_files/" + experiment_name + "/CNN/tensorboard/"):
+            os.makedirs("./experiments_files/" + experiment_name + "/CNN/tensorboard/")
+
+        tb = TensorBoard(log_dir="./experiments_files/" + experiment_name + "/CNN/tensorboard/run_"+str(i_fold))
 
         #-------------------------------------------------------
         model.fit_generator(train_generator,
@@ -151,19 +157,21 @@ def main(args):
         y_test = test_generator.get_labels()
         fnames = test_generator.get_names()
 
-        if i == 0:
-            file_predictions = open('./predictions/predictions.csv', 'wb')
+        if not os.path.exists("./experiments_files/" + experiment_name + "/CNN/error_analysis/"):
+            os.makedirs("./experiments_files/" + experiment_name + "/CNN/error_analysis/")
+
+
+        if i_fold == 0:
+            file_predictions = open("./experiments_files/" + experiment_name + "/CNN/error_analysis/predictions.csv", 'wb')
             wr = csv.writer(file_predictions)
             wr.writerow(['NAME', 'TRUE LABEL', 'PREDICTED'])
         else:
-            file_predictions = open('./predictions/predictions.csv', 'a')
+            file_predictions = open("./experiments_files/" + experiment_name + "/CNN/error_analysis/predictions.csv", 'a')
             wr = csv.writer(file_predictions)
         for j, fname in enumerate(fnames):
             wr.writerow([(str(fname)).encode('utf-8'),(str( y_test[j])).encode('utf-8'),(str((np.argmax(y_predicted, axis=1))[j])).encode('utf-8')])
         file_predictions.close()
 
-
-        from sklearn.metrics import confusion_matrix
         print("")
         print("Confusion matrix")
         cm = confusion_matrix(y_test, np.argmax(y_predicted, axis=1))
@@ -179,14 +187,17 @@ def main(args):
         print("Specificity: %.4f " % (test_spec))
         print("Error Rate: %.4f " % (error_rate))
 
-        cv_test_bac[i] = test_bac
-        cv_test_sens[i] = test_sens
-        cv_test_spec[i] = test_spec
-        cv_error_rate[i] = error_rate
-        model.save('./models/model_%d.h5' % i)
+        cv_test_bac[i_fold] = test_bac
+        cv_test_sens[i_fold] = test_sens
+        cv_test_spec[i_fold] = test_spec
+        cv_error_rate[i_fold] = error_rate
+
+
+        if not os.path.exists("./experiments_files/" + experiment_name + "/CNN/models/"):
+            os.makedirs("./experiments_files/" + experiment_name + "/CNN/models/")
+        model.save("./experiments_files/" + experiment_name + "/CNN/models/model_%d.pkl" % i_fold)
 
         tf.reset_default_graph()
-        i += 1
 
     print("")
     print("")
@@ -194,6 +205,10 @@ def main(args):
     print("Cross-validation Sensitivity: %.4f +- %.4f" % (cv_test_sens.mean(), cv_test_sens.std()))
     print("Cross-validation Specificity: %.4f +- %.4f" % (cv_test_spec.mean(), cv_test_spec.std()))
     print("Cross-validation Error Rate: %.4f +- %.4f" % (cv_error_rate.mean(), cv_error_rate.std()))
+
+    if not os.path.exists("./experiments_files/" + experiment_name + "/CNN/summary/"):
+        os.makedirs("./experiments_files/" + experiment_name + "/CNN/summary/")
+    np.savez("./experiments_files/" + experiment_name + "/CNN/summary/cv_results.npz", bac=cv_test_bac, sens=cv_test_sens, spec=cv_test_spec, error_rate = cv_error_rate )
 
 
 if __name__ == '__main__':
