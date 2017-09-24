@@ -7,9 +7,9 @@ import argparse
 import numpy as np
 import nibabel as nib
 
-import sys
-sys.path.append('./keras_extentions')
-from preprocessing_neuroimage import sort_nicely
+
+
+from keras_extensions.preprocessing_neuroimage import sort_nicely
 
 def create_kernel(args):
     config_name = args.config_name
@@ -43,6 +43,11 @@ def create_kernel(args):
     img_paths = glob.glob(data_dir + "/*" + input_data_type)
     img_paths = sort_nicely(img_paths)
 
+    img_names = []
+    for img_name in img_paths:
+        img_names.append(os.path.splitext(os.path.basename(img_name))[0])
+
+
     n_samples = len(labels)
     if n_samples != len(img_paths):
         raise ValueError('Different number of labels and images files')
@@ -75,6 +80,7 @@ def create_kernel(args):
             img = nib.load(path)
             img = img.get_data()
             img = np.asarray(img, dtype='float64')
+            img = np.nan_to_num(img)
             img_vec = np.reshape(img, np.product(img.shape))
             images_1.append(img_vec)
             del img
@@ -104,6 +110,7 @@ def create_kernel(args):
                     img = nib.load(path)
                     img = img.get_data()
                     img = np.asarray(img, dtype='float64')
+                    img = np.nan_to_num(img)
                     img_vec = np.reshape(img, np.product(img.shape))
                     images_2.append(img_vec)
                     del img
@@ -116,7 +123,7 @@ def create_kernel(args):
     print("")
     print("Saving Dataset")
     print("   Kernel+Labels:" + kernel_file)
-    np.savez(save_dir+kernel_file, kernel=K, labels=labels)
+    np.savez(save_dir+kernel_file, kernel=K, labels=labels, names=img_names)
     print("Done")
 
 if __name__ == '__main__':

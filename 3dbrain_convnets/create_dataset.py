@@ -7,9 +7,8 @@ import argparse
 import numpy as np
 import nibabel as nib
 
-import sys
-sys.path.append('./keras_extentions')
-from preprocessing_neuroimage import sort_nicely
+from keras_extensions.preprocessing_neuroimage import sort_nicely
+
 
 def create_npy(args):
     config_name = args.config_name
@@ -26,7 +25,6 @@ def create_npy(args):
     experiment_name = config_module.experiment_name
     labels_file = paths["labels_file"]
     data_dir = paths["raw_images_dir"]
-    save_dir = paths["npy_dir"] #TODO
 
     print("Saving 3d images using .npz fromat for experiment: ", experiment_name)
 
@@ -58,63 +56,67 @@ def create_npy(args):
     for k, path in enumerate(img_paths):
         img = nib.load(path)
         img = img.get_data()
+        img = np.asarray(img, dtype='float32')
+        img = np.nan_to_num(img)
         img_shape = img.shape
 
     #     X
-        for i in range(img_shape[0]):
+        for i in range(0,img_shape[0]):
             if np.max(img[i,:,:]) > 0:
                 break
-        if min_x > i-1:
-            min_x = i-1
+        if min_x > i:
+            min_x = i
 
         for i in range(img_shape[0]-1,0,-1):
             if np.max(img[i,:,:]) > 0:
                 break
-        if max_x < i+1:
-            max_x = i+1
+        if max_x < i:
+            max_x = i
 
     #     Y
-        for i in range(img_shape[1]):
+        for i in range(0,img_shape[1]):
             if np.max(img[:,i,:]) > 0:
                 break
-        if min_y > i-1:
-            min_y = i-1
+        if min_y > i:
+            min_y = i
 
         for i in range(img_shape[1]-1,0,-1):
             if np.max(img[:,i,:]) > 0:
                 break
-        if max_y < i+1:
-            max_y = i+1
+        if max_y < i:
+            max_y = i
 
     #     Z
-        for i in range(img_shape[2]):
+        for i in range(0,img_shape[2]):
             if np.max(img[:,:,i]) > 0:
                 break
-        if min_z > i-1:
-            min_z = i-1
+        if min_z > i:
+            min_z = i
 
         for i in range(img_shape[2]-1,0,-1):
             if np.max(img[:,:,i]) > 0:
                 break
-        if max_z < i+1:
-            max_z = i+1
+        if max_z < i:
+            max_z = i
 
+    print(max_x,max_y,max_z)
+    print(min_z,min_y,min_x)
 
     print("Loading images")
     print("   # of images samples: %d " % len(img_paths))
     print("")
-    print("{:<5}  {:50s} {:15s}\tCLASS\tMIN    - MAX VALUES".format('#', 'FILENAME', 'DIMENSIONS'))
+    print("{:<5}  {:100s} {:15s}\tCLASS\tMIN    - MAX VALUES".format('#', 'FILENAME', 'DIMENSIONS'))
     for k, path in enumerate(img_paths):
         label = labels[k]
         img = nib.load(path)
         img = img.get_data()
         img = np.asarray(img, dtype='float32')
+        img = np.nan_to_num(img)
         img = img[min_x:max_x,min_y:max_y,min_z:max_z]
-        print("{:<5}  {:50s} ({:3}, {:3}, {:3})\t{:}\t{:6.4} - {:6.4}".format((k + 1), os.path.basename(os.path.normpath(path)), img.shape[0], img.shape[1], img.shape[2], labels[k], np.min(img), np.max(img)))
+        print("{:<5}  {:100s} ({:3}, {:3}, {:3})\t{:}\t{:6.4} - {:6.4}".format((k + 1), os.path.basename(os.path.normpath(path)), img.shape[0], img.shape[1], img.shape[2], labels[k], np.min(img), np.max(img)))
         img = np.true_divide(img,np.max(img))
         img = np.reshape(img, (1, img.shape[0], img.shape[1], img.shape[2]))
         f_name = os.path.splitext(os.path.basename(path))[0]
-        print("Saving " + f_name)
         np.savez(save_dir + f_name, image=img, label=label)
         del img
     print("Done")
