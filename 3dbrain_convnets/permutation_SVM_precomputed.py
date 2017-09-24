@@ -32,7 +32,7 @@ def main(args):
     np.random.seed(N_SEED)
 
     kernel_file = "precomputed_kernel.npz"
-    save_dir = "./experiments_files/" + experiment_name + "/precomputed_kernel/"
+    save_dir = "./experiments_files/" + experiment_name + "/SVM/precomputed_kernel/"
     python_files = save_dir+kernel_file
 
     print("")
@@ -97,16 +97,16 @@ def main(args):
         accumulated_ERROR[i_rep] = np.mean(cv_error_rate)
         print("PERMUTATION: ", i_rep + 1, " BAC: ", np.mean(cv_test_bac), ' SENS: ', np.mean(cv_test_sens), ' SPEC: ',np.mean(cv_test_spec) ,' ERROR: ', np.mean(cv_error_rate))
 
-    if not os.path.exists("./experiments_files/" + experiment_name + "/permutation_test/"):
-        os.makedirs("./experiments_files/" + experiment_name + "/permutation_test/")
-    np.savetxt("./experiments_files/" + experiment_name + "/permutation_test/perm_SVM_bac.csv", np.asarray(accumulated_BAC), delimiter=",")
-    np.savetxt("./experiments_files/" + experiment_name + "/permutation_test/perm_SVM_sens.csv", np.asarray(accumulated_SENS), delimiter=",")
-    np.savetxt("./experiments_files/" + experiment_name + "/permutation_test/perm_SVM_spec.csv", np.asarray(accumulated_SPEC), delimiter=",")
-    np.savetxt("./experiments_files/" + experiment_name + "/permutation_test/perm_SVM_error.csv", np.asarray(accumulated_ERROR), delimiter=",")
+    if not os.path.exists("./experiments_files/" + experiment_name + "/SVM/permutation_test/"):
+        os.makedirs("./experiments_files/" + experiment_name + "/SVM/permutation_test/")
+    np.savetxt("./experiments_files/" + experiment_name + "/SVM/permutation_test/perm_SVM_bac.csv", np.asarray(accumulated_BAC), delimiter=",")
+    np.savetxt("./experiments_files/" + experiment_name + "/SVM/permutation_test/perm_SVM_sens.csv", np.asarray(accumulated_SENS), delimiter=",")
+    np.savetxt("./experiments_files/" + experiment_name + "/SVM/permutation_test/perm_SVM_spec.csv", np.asarray(accumulated_SPEC), delimiter=",")
+    np.savetxt("./experiments_files/" + experiment_name + "/SVM/permutation_test/perm_SVM_error.csv", np.asarray(accumulated_ERROR), delimiter=",")
 
     print("")
     print("Reading CV PERFORMANCE " + python_files)
-    file_npz = np.load("./experiments_files/" + experiment_name + "/summary/cv_results.npz")
+    file_npz = np.load("./experiments_files/" + experiment_name + "/SVM/summary/cv_results.npz")
     bac = file_npz['bac']
     sens = file_npz['sens']
     spec = file_npz['spec']
