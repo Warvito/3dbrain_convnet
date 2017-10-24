@@ -1,5 +1,8 @@
-from __future__ import print_function
+"""
 
+"""
+from __future__ import print_function
+import sys
 import os
 import imp
 import csv
@@ -10,10 +13,11 @@ import tensorflow as tf
 
 from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import confusion_matrix
-from keras_extensions.preprocessing_neuroimage import DataGenerator
+
 from keras import backend as K
 
-
+sys.path.insert(0, './keras_extensions/')
+from preprocessing_neuroimage import DataGenerator
 
 def main(args):
     config_name = args.config_name

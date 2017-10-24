@@ -1,5 +1,8 @@
-from __future__ import print_function
+"""
 
+"""
+from __future__ import print_function
+import sys
 import os
 import imp
 import glob
@@ -7,9 +10,8 @@ import argparse
 import numpy as np
 import nibabel as nib
 
-
-
-from keras_extensions.utils import sort_nicely
+sys.path.insert(0, './keras_extensions/')
+from utils import sort_nicely
 
 def create_kernel(args):
     config_name = args.config_name

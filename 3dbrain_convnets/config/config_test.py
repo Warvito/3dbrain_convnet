@@ -66,11 +66,17 @@ def get_model():
     # ---------------------------------------- START MODEL ------------------------------------------------------------
     model = Sequential()
     model.add(Convolution3D(64, (7, 7, 7), strides=(2,2,2),padding = 'valid', activation='relu', input_shape=(img_channels,) + image_dimension))
+    model.add(BatchNormalization())
     model.add(MaxPooling3D(pool_size=(5, 5, 5), strides=(2, 2 , 2)))
+
     model.add(Convolution3D(64, (5, 5, 5) ,padding = 'same', activation='relu', kernel_regularizer=l2(0.0001)))
     model.add(BatchNormalization())
     model.add(MaxPooling3D(pool_size=(5, 5, 5), strides=(2, 2, 2)))
+
+    model.add(Convolution3D(64, (5, 5, 5), padding='same', activation='relu', kernel_regularizer=l2(0.0001)))
     model.add(BatchNormalization())
+    model.add(MaxPooling3D(pool_size=(5, 5, 5), strides=(3, 3, 3)))
+
     model.add(Flatten())
     model.add(Dense(10, activation='relu'))
     model.add(Dropout(rate=0.2))
