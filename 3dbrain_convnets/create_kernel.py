@@ -31,7 +31,7 @@ def create_kernel(args):
 
     print("Creating precomputed linear kernels for experiment: ", experiment_name)
 
-    save_dir = "./experiments_files/" + experiment_name + "/SVM/precomputed_kernel/"
+    save_dir = "./results/" + experiment_name + "/SVM/precomputed_kernel/"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 

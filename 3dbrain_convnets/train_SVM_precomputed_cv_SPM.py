@@ -34,7 +34,7 @@ def main(args):
     np.random.seed(N_SEED)
 
     kernel_file = "precomputed_kernel.npz"
-    save_dir = "./experiments_files/" + experiment_name + "/SVM/precomputed_kernel/"
+    save_dir = "./results/" + experiment_name + "/SVM/precomputed_kernel/"
     python_files = save_dir+kernel_file
 
     print("")
@@ -92,15 +92,15 @@ def main(args):
         fnames = file_npz['names']
         fnames = fnames[test_index]
 
-        if not os.path.exists("./experiments_files/" + experiment_name + "/SVM/error_analysis/"):
-            os.makedirs("./experiments_files/" + experiment_name + "/SVM/error_analysis/")
+        if not os.path.exists("./results/" + experiment_name + "/SVM/error_analysis/"):
+            os.makedirs("./results/" + experiment_name + "/SVM/error_analysis/")
 
         if i_fold == 0:
-            file_predictions = open("./experiments_files/" + experiment_name + "/SVM/error_analysis/predictions.csv", 'wb')
+            file_predictions = open("./results/" + experiment_name + "/SVM/error_analysis/predictions.csv", 'wb')
             wr = csv.writer(file_predictions)
             wr.writerow(['NAME', 'TRUE LABEL', 'PREDICTED'])
         else:
-            file_predictions = open("./experiments_files/" + experiment_name + "/SVM/error_analysis/predictions.csv", 'a')
+            file_predictions = open("./results/" + experiment_name + "/SVM/error_analysis/predictions.csv", 'a')
             wr = csv.writer(file_predictions)
         for j, fname in enumerate(fnames):
             wr.writerow([(str(fname)).encode('utf-8'),(str(test_y[j])).encode('utf-8'),(str(y_predicted[j])).encode('utf-8')])
@@ -128,9 +128,9 @@ def main(args):
         cv_test_spec[i_fold] = test_spec
         cv_error_rate[i_fold] = error_rate
 
-        if not os.path.exists("./experiments_files/" + experiment_name + "/SVM/models/"):
-            os.makedirs("./experiments_files/" + experiment_name + "/SVM/models/")
-        joblib.dump(clf, "./experiments_files/" + experiment_name + "/SVM/models/model_%d.pkl" % i_fold)
+        if not os.path.exists("./results/" + experiment_name + "/SVM/models/"):
+            os.makedirs("./results/" + experiment_name + "/SVM/models/")
+        joblib.dump(clf, "./results/" + experiment_name + "/SVM/models/model_%d.pkl" % i_fold)
 
     print("")
     print("")
@@ -139,9 +139,9 @@ def main(args):
     print("Cross-validation Specificity: %.4f +- %.4f" % (cv_test_spec.mean(), cv_test_spec.std()))
     print("Cross-validation Error Rate: %.4f +- %.4f" % (cv_error_rate.mean(), cv_error_rate.std()))
 
-    if not os.path.exists("./experiments_files/" + experiment_name + "/SVM/summary/"):
-        os.makedirs("./experiments_files/" + experiment_name + "/SVM/summary/")
-    np.savez("./experiments_files/" + experiment_name + "/SVM/summary/cv_results.npz", bac=cv_test_bac, sens=cv_test_sens, spec=cv_test_spec, error_rate = cv_error_rate )
+    if not os.path.exists("./results/" + experiment_name + "/SVM/summary/"):
+        os.makedirs("./results/" + experiment_name + "/SVM/summary/")
+    np.savez("./results/" + experiment_name + "/SVM/summary/cv_results.npz", bac=cv_test_bac, sens=cv_test_sens, spec=cv_test_spec, error_rate = cv_error_rate )
 
 
 

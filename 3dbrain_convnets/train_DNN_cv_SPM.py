@@ -58,7 +58,7 @@ def main(config_module):
     eq_prob = config_module.eq_prob
 
     # ------------------------------- Loading data --------------------------------------------------
-    img_dir = "./experiments_files/" + experiment_name + "/CNN/img_npz/"
+    img_dir = "./results/" + experiment_name + "/CNN/img_npz/"
     print("Loading data from : ", img_dir)
     paths = config_module.path_files
     labels_file = paths["labels_file"]
@@ -141,10 +141,10 @@ def main(config_module):
             test_datagen.std = train_datagen.std
 
         # ------------------------------ Tensorboard ---------------------------------------------------
-        if not os.path.exists("./experiments_files/" + experiment_name + "/CNN/tensorboard/"):
-            os.makedirs("./experiments_files/" + experiment_name + "/CNN/tensorboard/")
+        if not os.path.exists("./results/" + experiment_name + "/CNN/tensorboard/"):
+            os.makedirs("./results/" + experiment_name + "/CNN/tensorboard/")
 
-        tb = TensorBoard(log_dir="./experiments_files/" + experiment_name + "/CNN/tensorboard/run_"+str(i_fold))
+        tb = TensorBoard(log_dir="./results/" + experiment_name + "/CNN/tensorboard/run_"+str(i_fold))
 
         # ------------------------------ Traning ---------------------------------------------------
         model.fit_generator(train_generator,
@@ -164,15 +164,15 @@ def main(config_module):
         fnames = test_generator.get_names()
 
         # -------------------------- Error analysis --------------------------------------------
-        if not os.path.exists("./experiments_files/" + experiment_name + "/CNN/error_analysis/"):
-            os.makedirs("./experiments_files/" + experiment_name + "/CNN/error_analysis/")
+        if not os.path.exists("./results/" + experiment_name + "/CNN/error_analysis/"):
+            os.makedirs("./results/" + experiment_name + "/CNN/error_analysis/")
 
         if i_fold == 0:
-            file_predictions = open("./experiments_files/" + experiment_name + "/CNN/error_analysis/predictions.csv", 'w')
+            file_predictions = open("./results/" + experiment_name + "/CNN/error_analysis/predictions.csv", 'w')
             wr = csv.writer(file_predictions)
             wr.writerow(['NAME', 'TRUE LABEL', 'PREDICTED'])
         else:
-            file_predictions = open("./experiments_files/" + experiment_name + "/CNN/error_analysis/predictions.csv", 'a')
+            file_predictions = open("./results/" + experiment_name + "/CNN/error_analysis/predictions.csv", 'a')
             wr = csv.writer(file_predictions)
         for j, fname in enumerate(fnames):
             wr.writerow([(str(fname)).encode('utf-8'),(str( y_test[j])).encode('utf-8'),(str((np.argmax(y_predicted, axis=1))[j])).encode('utf-8')])
@@ -201,9 +201,9 @@ def main(config_module):
         cv_error_rate[i_fold] = error_rate
 
         # -------------------------- Saving models -------------------------------------------
-        if not os.path.exists("./experiments_files/" + experiment_name + "/CNN/models/"):
-            os.makedirs("./experiments_files/" + experiment_name + "/CNN/models/")
-        model.save("./experiments_files/" + experiment_name + "/CNN/models/model_%d.h5" % i_fold)
+        if not os.path.exists("./results/" + experiment_name + "/CNN/models/"):
+            os.makedirs("./results/" + experiment_name + "/CNN/models/")
+        model.save("./results/" + experiment_name + "/CNN/models/model_%d.h5" % i_fold)
 
         tf.reset_default_graph()
 
@@ -215,9 +215,9 @@ def main(config_module):
     print("Cross-validation Error Rate: %.4f +- %.4f" % (cv_error_rate.mean(), cv_error_rate.std()))
 
     # -------------------------- Saving performance -------------------------------------------
-    if not os.path.exists("./experiments_files/" + experiment_name + "/CNN/summary/"):
-        os.makedirs("./experiments_files/" + experiment_name + "/CNN/summary/")
-    np.savez("./experiments_files/" + experiment_name + "/CNN/summary/cv_results.npz",
+    if not os.path.exists("./results/" + experiment_name + "/CNN/summary/"):
+        os.makedirs("./results/" + experiment_name + "/CNN/summary/")
+    np.savez("./results/" + experiment_name + "/CNN/summary/cv_results.npz",
              bac=cv_test_bac, sens=cv_test_sens, spec=cv_test_spec, error_rate = cv_error_rate )
 
 

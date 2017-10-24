@@ -1,4 +1,5 @@
 """
+Transform nifti to npz format
 
 """
 from __future__ import print_function
@@ -24,7 +25,7 @@ def create_npy(config_module):
 
     print("Saving 3d images using .npz fromat for experiment: ", experiment_name)
 
-    save_dir = "./experiments_files/" + experiment_name + "/CNN/img_npz/"
+    save_dir = "./results/" + experiment_name + "/CNN/img_npz/"
     if not os.path.exists(save_dir):
         os.makedirs(save_dir)
 
@@ -120,7 +121,8 @@ def create_npy(config_module):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Script to create dataset files.')
-    parser.add_argument("config_name", type=str, help="The name of file .py with configurations, e.g., ./config/config_test.py")
+    parser.add_argument("config_name", type=str, help="The name of file .py with configurations,"
+                                                      " e.g., ./config/config_test.py")
     args = parser.parse_args()
     config_name = args.config_name
 
