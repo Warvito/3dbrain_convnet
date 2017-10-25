@@ -1,3 +1,4 @@
+"""CONFIGURATION FILE"""
 
 experiment_name = "TEST1"
 
