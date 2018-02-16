@@ -8,6 +8,7 @@ import imp
 import glob
 import argparse
 import numpy as np
+import pandas as pd
 import nibabel as nib
 
 sys.path.insert(0, './keras_extensions/')
@@ -44,7 +45,7 @@ def create_kernel(args):
     print("   # of labels samples: %d " % len(labels))
 
     print("Reading covariates from %s" % labels_file)
-    metadata = np.genfromtxt(metadata_file, delimiter=',', dtype='int8')
+    metadata = pd.read_csv(metadata_file, header=0, delimiter=',').values
     print("   # of labels samples: %d " % len(labels))
 
     print("Reading images with format {} from: %s".format(input_data_type, data_dir))
