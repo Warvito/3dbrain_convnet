@@ -6,6 +6,7 @@ path_files = {
     "raw_images_dir": "./data/PPMI/", # Path to the directory with the raw data (.nii or .img and .hdr). Path used in create_dataset.py.
     "labels_file": "./data/labels.csv", # Path to the csv with the labels (need to be sorted as the raw data at the directory). Path used in create_dataset.py.
     "metadata_file": "./data/metadata.csv", # Path to the csv with the metadata (need to be sorted as the raw data at the directory and each column represents one covariate). Path used in create_kernel_with_metadata.py.
+    "mask_file":"" #Path to the file with the binary mask (.nii) Path used in create_dataset.py. Leave it blank ("") if there is no mask.
     }
 
 # Type of input data. Specify ".nii" or ".img"

@@ -31,6 +31,7 @@ def create_kernel(args):
     labels_file = paths["labels_file"]
     metadata_file = paths["metadata_file"]
     data_dir = paths["raw_images_dir"]
+    mask_file = paths["mask_file"]
 
     print("Creating precomputed linear kernels for experiment: ", experiment_name)
 
@@ -47,6 +48,12 @@ def create_kernel(args):
     print("Reading covariates from %s" % labels_file)
     metadata = pd.read_csv(metadata_file, header=0, delimiter=',').values
     print("   # of labels samples: %d " % len(labels))
+
+    if mask_file is not "":
+        mask = nib.load(mask_file)
+        mask = mask.get_data()
+        mask = np.asarray(mask, dtype='float32')
+        mask = np.nan_to_num(mask)
 
     print("Reading images with format {} from: %s".format(input_data_type, data_dir))
     img_paths = glob.glob(data_dir + "/*" + input_data_type)
@@ -90,7 +97,10 @@ def create_kernel(args):
             img = img.get_data()
             img = np.asarray(img, dtype='float64')
             img = np.nan_to_num(img)
-            img_vec = np.reshape(img, np.product(img.shape))
+            if mask_file is not "":
+                img_vec = img[mask>0]
+            else:
+                img_vec = np.reshape(img, np.product(img.shape))
             img_vec = np.append(img_vec, block_metadata_1[k, :])
             images_1.append(img_vec)
             del img
@@ -121,7 +131,10 @@ def create_kernel(args):
                     img = img.get_data()
                     img = np.asarray(img, dtype='float64')
                     img = np.nan_to_num(img)
-                    img_vec = np.reshape(img, np.product(img.shape))
+                    if mask_file is not "":
+                        img_vec = img[mask > 0]
+                    else:
+                        img_vec = np.reshape(img, np.product(img.shape))
                     img_vec = np.append(img_vec, block_metadata_2[k, :])
                     images_2.append(img_vec)
                     del img

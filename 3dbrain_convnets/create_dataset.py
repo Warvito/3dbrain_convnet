@@ -22,8 +22,9 @@ def create_npy(config_module):
     experiment_name = config_module.experiment_name
     labels_file = paths["labels_file"]
     data_dir = paths["raw_images_dir"]
+    mask_file = paths["mask_file"]
 
-    print("Saving 3d images using .npz fromat for experiment: ", experiment_name)
+    print("Saving 3d images using .npz format for experiment: ", experiment_name)
 
     save_dir = "./results/" + experiment_name + "/CNN/img_npz/"
     if not os.path.exists(save_dir):
@@ -50,54 +51,104 @@ def create_npy(config_module):
     min_z = 1000
     max_z = 0
 
-    for k, path in enumerate(img_paths):
-        img = nib.load(path)
-        img = img.get_data()
-        img = np.asarray(img, dtype='float32')
-        img = np.nan_to_num(img)
-        img_shape = img.shape
+    if mask_file is not "":
+        mask = nib.load(mask_file)
+        mask = mask.get_data()
+        mask = np.asarray(mask, dtype='float32')
+        mask = np.nan_to_num(mask)
+        mask_shape = mask.shape
 
-    #     X
-        for i in range(0,img_shape[0]):
-            if np.max(img[i,:,:]) > 0:
+        #     X
+        for i in range(0, mask_shape[0]):
+            if np.max(mask[i, :, :]) > 0:
                 break
         if min_x > i:
             min_x = i
 
-        for i in range(img_shape[0]-1,0,-1):
-            if np.max(img[i,:,:]) > 0:
+        for i in range(mask_shape[0] - 1, 0, -1):
+            if np.max(mask[i, :, :]) > 0:
                 break
         if max_x < i:
             max_x = i
 
-    #     Y
-        for i in range(0,img_shape[1]):
-            if np.max(img[:,i,:]) > 0:
+            #     Y
+        for i in range(0, mask_shape[1]):
+            if np.max(mask[:, i, :]) > 0:
                 break
         if min_y > i:
             min_y = i
 
-        for i in range(img_shape[1]-1,0,-1):
-            if np.max(img[:,i,:]) > 0:
+        for i in range(mask_shape[1] - 1, 0, -1):
+            if np.max(mask[:, i, :]) > 0:
                 break
         if max_y < i:
             max_y = i
 
-    #     Z
-        for i in range(0,img_shape[2]):
-            if np.max(img[:,:,i]) > 0:
+            #     Z
+        for i in range(0, mask_shape[2]):
+            if np.max(mask[:, :, i]) > 0:
                 break
         if min_z > i:
             min_z = i
 
-        for i in range(img_shape[2]-1,0,-1):
-            if np.max(img[:,:,i]) > 0:
+        for i in range(mask_shape[2] - 1, 0, -1):
+            if np.max(mask[:, :, i]) > 0:
                 break
         if max_z < i:
             max_z = i
 
-    print(max_x,max_y,max_z)
-    print(min_z,min_y,min_x)
+        print(max_x, max_y, max_z)
+        print(min_x, min_y, min_z)
+
+    else:
+        for k, path in enumerate(img_paths):
+            img = nib.load(path)
+            img = img.get_data()
+            img = np.asarray(img, dtype='float32')
+            img = np.nan_to_num(img)
+            img_shape = img.shape
+
+        #     X
+            for i in range(0,img_shape[0]):
+                if np.max(img[i,:,:]) > 0:
+                    break
+            if min_x > i:
+                min_x = i
+
+            for i in range(img_shape[0]-1,0,-1):
+                if np.max(img[i,:,:]) > 0:
+                    break
+            if max_x < i:
+                max_x = i
+
+        #     Y
+            for i in range(0,img_shape[1]):
+                if np.max(img[:,i,:]) > 0:
+                    break
+            if min_y > i:
+                min_y = i
+
+            for i in range(img_shape[1]-1,0,-1):
+                if np.max(img[:,i,:]) > 0:
+                    break
+            if max_y < i:
+                max_y = i
+
+        #     Z
+            for i in range(0,img_shape[2]):
+                if np.max(img[:,:,i]) > 0:
+                    break
+            if min_z > i:
+                min_z = i
+
+            for i in range(img_shape[2]-1,0,-1):
+                if np.max(img[:,:,i]) > 0:
+                    break
+            if max_z < i:
+                max_z = i
+
+        print(max_x,max_y,max_z)
+        print(min_z,min_y,min_x)
 
     print("Loading images")
     print("   # of images samples: %d " % len(img_paths))
@@ -109,6 +160,8 @@ def create_npy(config_module):
         img = img.get_data()
         img = np.asarray(img, dtype='float32')
         img = np.nan_to_num(img)
+        if mask_file is not "":
+            img = np.multiply(img,mask)
         img = img[min_x:max_x,min_y:max_y,min_z:max_z]
         print("{:<5}  {:100s} ({:3}, {:3}, {:3})\t{:}\t{:6.4} - {:6.4}".format((k + 1), os.path.basename(os.path.normpath(path)), img.shape[0], img.shape[1], img.shape[2], labels[k], np.min(img), np.max(img)))
         img = np.true_divide(img,np.max(img))
