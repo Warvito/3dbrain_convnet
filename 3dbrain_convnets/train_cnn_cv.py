@@ -1,7 +1,11 @@
 """
+Train Convolution Neural Network.
 
 """
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+
 import sys
 import os
 import csv
@@ -34,7 +38,7 @@ def main(config_module):
     # ------------------------------- Experiment data --------------------------------------------------
     experiment_name = config_module.experiment_name
 
-    # ------------------------------- Hiperparametros --------------------------------------------------
+    # ------------------------------- Hiperparameters --------------------------------------------------
     n_folds = config_module.n_folds
     nb_classes = config_module.nb_classes
     batch_size = config_module.batch_size
@@ -62,7 +66,7 @@ def main(config_module):
     print("Loading data from : ", img_dir)
     paths = config_module.path_files
     labels_file = paths["labels_file"]
-    labels = np.genfromtxt(labels_file, delimiter=',', dtype='int8')
+    labels = np.genfromtxt(labels_file, delimiter=',', dtype='int8') #TODO: Change for pandas
 
     # ----------------- Cross validation ---------------------------------
     print("")
@@ -101,7 +105,7 @@ def main(config_module):
         # ------------------------------ Data generator ---------------------------------------------------
         print("")
         print("Training with %d subjects." % (len(train_index)))
-        train_datagen = DataGenerator(do_ZMUV=do_zmuv,
+        train_datagen = DataGenerator(do_zmuv=do_zmuv,
                                       image_shape=image_dimension,
                                       rotation_x_range=rotation_x_range,
                                       rotation_y_range=rotation_y_range,
@@ -123,7 +127,7 @@ def main(config_module):
             nb_class=nb_classes,
             batch_size=batch_size)
 
-        test_datagen = DataGenerator(do_ZMUV=do_zmuv,
+        test_datagen = DataGenerator(do_zmuv=do_zmuv,
                                      image_shape=image_dimension)
 
         test_generator = test_datagen.flow_from_directory(

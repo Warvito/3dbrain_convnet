@@ -1,5 +1,7 @@
 """
 """
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
 import os
@@ -58,9 +60,6 @@ def main(args):
     cv_error_rate = np.zeros((n_folds,))
 
     skf = StratifiedKFold(n_splits=n_folds, random_state=config_module.N_SEED, shuffle=True)
-
-    accumulated_predicted_class = []
-    accumulated_true_class = []
 
     for i_fold, (train_index, test_index) in enumerate(skf.split(labels, labels)):
         train_y, test_y = labels[train_index], labels[test_index]

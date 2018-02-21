@@ -1,7 +1,13 @@
 """
+Computes the Gram matrix for the SVM method.
+
+Reference: http://scikit-learn.org/stable/modules/svm.html#using-the-gram-matrix
 
 """
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+
 import sys
 import os
 import imp
@@ -13,15 +19,7 @@ import nibabel as nib
 sys.path.insert(0, './keras_extensions/')
 from utils import sort_nicely
 
-def create_kernel(args):
-    config_name = args.config_name
-
-    try:
-        config_module = imp.load_source('config', config_name)
-
-    except IOError:
-        print('Cannot open ', config_name,
-              '. Please specify the correct path of the configuration file. Example: python create_dataset.py ./config/config_test.py')
+def create_kernel(config_module):
 
     paths = config_module.path_files
     input_data_type = config_module.input_data_type
@@ -145,4 +143,14 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Script to create dataset files.')
     parser.add_argument("config_name", type=str, help="The name of file .py with configurations, e.g., ./config/config_test.py")
     args = parser.parse_args()
-    create_kernel(args)
+
+    config_name = args.config_name
+
+    try:
+        config_module = imp.load_source('config', config_name)
+
+    except IOError:
+        print('Cannot open ', config_name,
+              '. Please specify the correct path of the configuration file. Example: python create_dataset.py ./config/config_test.py')
+
+    create_kernel(config_module)

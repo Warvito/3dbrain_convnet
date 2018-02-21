@@ -1,26 +1,23 @@
-'''Fairly basic set of tools for real-time data augmentation on image data.
+'''
+Fairly basic set of tools for real-time data augmentation on image data.
 Can easily be extended to include new transformations,
 new preprocessing methods, etc...
 '''
 from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
 
-from scipy import ndimage
+import numpy as np
+import re
+import math
 from skimage import exposure
 import scipy.ndimage as ndi
 import os
 import threading
-import warnings
 import cv2
 
 import keras.backend as K
 
-import numpy as np
-import os
-import threading
-import re
-import math
-import glob
 
 def tryint(s):
     try:
@@ -28,13 +25,35 @@ def tryint(s):
     except ValueError:
         return s
 
+
 def alphanum_key(s):
     return [tryint(c) for c in re.split('([0-9]+)', s)]
+
 
 def sort_nicely(l):
     return sorted(l, key=alphanum_key)
 
+
 def load_img(path):
+    # TODO: Documentation
+    """Loads an image into PIL format.
+    # Arguments
+        path: Path to image file
+        grayscale: Boolean, whether to load the image as grayscale.
+        target_size: Either `None` (default to original size)
+                or tuple of ints `(img_height, img_width)`.
+        interpolation: Interpolation method used to resample the image if the
+                target size is different from that of the loaded image.
+                Supported methods are "nearest", "bilinear", and "bicubic".
+                If PIL version 1.1.3 or newer is installed, "lanczos" is also
+                supported. If PIL version 3.4.0 or newer is installed, "box" and
+                "hamming" are also supported. By default, "nearest" is used.
+    # Returns
+         A PIL Image instance.
+    # Raises
+         ImportError: if PIL is not available.
+         ValueError: if interpolation method is not supported.
+    """
     file_npz = np.load(path)
     img = file_npz['image']
     label = file_npz['label']
@@ -58,6 +77,7 @@ def unit_vector(data, axis=None, out=None):
     if out is None:
         return data
 
+
 def rotation_transf_matrix(angle, direction):
     sina = math.sin(angle)
     cosa = math.cos(angle)
@@ -68,42 +88,113 @@ def rotation_transf_matrix(angle, direction):
     R += np.outer(direction, direction) * (1.0 - cosa)
     direction *= sina
     R += np.array([[ 0.0,         -direction[2],  direction[1]],
-                      [ direction[2], 0.0,          -direction[0]],
-                      [-direction[1], direction[0],  0.0]])
+                   [ direction[2], 0.0,          -direction[0]],
+                   [-direction[1], direction[0],  0.0]])
     M = np.identity(4)
     M[:3, :3] = R
     return M
 
-def random_rx(x, angle_range,row_index=1, col_index=2, dep_index=3, channel_index=0, fill_mode='constant', cval=0., order=0):
+
+def random_rx(x, rg, row_index=1, col_index=2, dep_index=3, channel_index=0,
+              fill_mode='constant', cval=0., order=1):
+    # TODO: Documentation
+    """Performs a random rotation of a Numpy image tensor.
+        # Arguments
+            x: Input tensor. Must be 3D.
+            rg: Rotation range, in degrees.
+            row_axis: Index of axis for rows in the input tensor.
+            col_axis: Index of axis for columns in the input tensor.
+            channel_axis: Index of axis for channels in the input tensor.
+            fill_mode: Points outside the boundaries of the input
+                are filled according to the given mode
+                (one of `{'constant', 'nearest', 'reflect', 'wrap'}`).
+            cval: Value used for points outside the boundaries
+                of the input if `mode='constant'`.
+        # Returns
+            Rotated Numpy image tensor.
+    """
     h, w, d = x.shape[row_index], x.shape[col_index], x.shape[dep_index]
     xaxis = [1, 0, 0]
-    alpha = np.pi / 180 * np.random.uniform(-angle_range, angle_range)
+    alpha = np.deg2rad(np.random.uniform(-rg, rg))
     Rx = rotation_transf_matrix(alpha, xaxis)
     transform_matrix = transform_matrix_offset_center(Rx, h, w, d)
     x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval, order)
     return x
 
-def random_ry(x, angle_range,row_index=1, col_index=2, dep_index=3, channel_index=0, fill_mode='constant', cval=0., order=0):
+
+def random_ry(x, angle_range,row_index=1, col_index=2, dep_index=3, channel_index=0,
+              fill_mode='constant', cval=0., order=1):
+    # TODO: Documentation
+    """Performs a random rotation of a Numpy image tensor.
+        # Arguments
+            x: Input tensor. Must be 3D.
+            rg: Rotation range, in degrees.
+            row_axis: Index of axis for rows in the input tensor.
+            col_axis: Index of axis for columns in the input tensor.
+            channel_axis: Index of axis for channels in the input tensor.
+            fill_mode: Points outside the boundaries of the input
+                are filled according to the given mode
+                (one of `{'constant', 'nearest', 'reflect', 'wrap'}`).
+            cval: Value used for points outside the boundaries
+                of the input if `mode='constant'`.
+        # Returns
+            Rotated Numpy image tensor.
+    """
     h, w, d = x.shape[row_index], x.shape[col_index], x.shape[dep_index]
-    xaxis = [0, 1, 0]
-    alpha = np.pi / 180 * np.random.uniform(-angle_range, angle_range)
-    Ry = rotation_transf_matrix(alpha, xaxis)
+    yaxis = [0, 1, 0]
+    alpha = np.deg2rad(np.random.uniform(-angle_range, angle_range))
+    Ry = rotation_transf_matrix(alpha, yaxis)
     transform_matrix = transform_matrix_offset_center(Ry, h, w, d)
     x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval, order)
     return x
 
-def random_rz(x, angle_range,row_index=1, col_index=2, dep_index=3, channel_index=0, fill_mode='constant', cval=0., order=0):
+
+def random_rz(x, angle_range,row_index=1, col_index=2, dep_index=3, channel_index=0,
+              fill_mode='constant', cval=0., order=1):
+    # TODO: Documentation
+    """Performs a random rotation of a Numpy image tensor.
+        # Arguments
+            x: Input tensor. Must be 3D.
+            rg: Rotation range, in degrees.
+            row_axis: Index of axis for rows in the input tensor.
+            col_axis: Index of axis for columns in the input tensor.
+            channel_axis: Index of axis for channels in the input tensor.
+            fill_mode: Points outside the boundaries of the input
+                are filled according to the given mode
+                (one of `{'constant', 'nearest', 'reflect', 'wrap'}`).
+            cval: Value used for points outside the boundaries
+                of the input if `mode='constant'`.
+        # Returns
+            Rotated Numpy image tensor.
+    """
     h, w, d = x.shape[row_index], x.shape[col_index], x.shape[dep_index]
-    xaxis = [0, 0, 1]
-    alpha = np.pi / 180 * np.random.uniform(-angle_range, angle_range)
-    Rz = rotation_transf_matrix(alpha, xaxis)
+    zaxis = [0, 0, 1]
+    alpha = np.deg2rad(np.random.uniform(-angle_range, angle_range))
+    Rz = rotation_transf_matrix(alpha, zaxis)
     transform_matrix = transform_matrix_offset_center(Rz, h, w, d)
     x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval, order)
     return x
 
 
 def random_shift(x, wrg, hrg, drg, row_index=1, col_index=2, dep_index=3, channel_index=0,
-                 fill_mode='constant', cval=0., order=0):
+                 fill_mode='constant', cval=0., order=1):
+    # TODO: Documentation
+    """Performs a random spatial shift of a Numpy image tensor.
+    # Arguments
+        x: Input tensor. Must be 3D.
+        wrg: Width shift range, as a float fraction of the width.
+        hrg: Height shift range, as a float fraction of the height.
+        row_axis: Index of axis for rows in the input tensor.
+        col_axis: Index of axis for columns in the input tensor.
+        channel_axis: Index of axis for channels in the input tensor.
+        fill_mode: Points outside the boundaries of the input
+            are filled according to the given mode
+            (one of `{'constant', 'nearest', 'reflect', 'wrap'}`).
+        cval: Value used for points outside the boundaries
+            of the input if `mode='constant'`.
+    # Returns
+        Shifted Numpy image tensor.
+    """
     h, w, d = x.shape[row_index], x.shape[col_index], x.shape[dep_index]
     tx = np.random.uniform(-hrg, hrg) * h
     ty = np.random.uniform(-wrg, wrg) * w
@@ -119,7 +210,26 @@ def random_shift(x, wrg, hrg, drg, row_index=1, col_index=2, dep_index=3, channe
     return x
 
 
-def random_zoom(x, zoom_range, row_index=1, col_index=2, dep_index=3, channel_index=0, fill_mode='constant', cval=0., order=0):
+def random_zoom(x, zoom_range, row_index=1, col_index=2, dep_index=3, channel_index=0,
+                fill_mode='constant', cval=0., order=1):
+    # TODO: Documentation
+    """Performs a random spatial zoom of a Numpy image tensor.
+    # Arguments
+        x: Input tensor. Must be 3D.
+        zoom_range: Tuple of floats; zoom range for width and height.
+        row_axis: Index of axis for rows in the input tensor.
+        col_axis: Index of axis for columns in the input tensor.
+        channel_axis: Index of axis for channels in the input tensor.
+        fill_mode: Points outside the boundaries of the input
+            are filled according to the given mode
+            (one of `{'constant', 'nearest', 'reflect', 'wrap'}`).
+        cval: Value used for points outside the boundaries
+            of the input if `mode='constant'`.
+    # Returns
+        Zoomed Numpy image tensor.
+    # Raises
+        ValueError: if `zoom_range` isn't a tuple.
+    """
     if len(zoom_range) != 2:
         raise ValueError('zoom_range should be a tuple or list of two floats. '
                          'Received arg: ', zoom_range)
@@ -138,7 +248,10 @@ def random_zoom(x, zoom_range, row_index=1, col_index=2, dep_index=3, channel_in
     x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval, order)
     return x
 
-def random_streching_x(x, streching_range, row_index=1, col_index=2, dep_index=3, channel_index=0, fill_mode='constant', cval=0., order=0):
+
+def random_streching_x(x, streching_range, row_index=1, col_index=2, dep_index=3, channel_index=0,
+                       fill_mode='constant', cval=0., order=1):
+    # TODO: Different message
     if len(streching_range) != 2:
         raise ValueError('zoom_range should be a tuple or list of two floats. '
                          'Received arg: ', streching_range)
@@ -157,7 +270,10 @@ def random_streching_x(x, streching_range, row_index=1, col_index=2, dep_index=3
     x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval, order)
     return x
 
-def random_streching_y(x, streching_range, row_index=1, col_index=2, dep_index=3, channel_index=0, fill_mode='constant', cval=0., order=0):
+
+def random_streching_y(x, streching_range, row_index=1, col_index=2, dep_index=3, channel_index=0,
+                       fill_mode='constant', cval=0., order=1):
+    # TODO: Different message
     if len(streching_range) != 2:
         raise ValueError('zoom_range should be a tuple or list of two floats. '
                          'Received arg: ', streching_range)
@@ -176,7 +292,10 @@ def random_streching_y(x, streching_range, row_index=1, col_index=2, dep_index=3
     x = apply_transform(x, transform_matrix, channel_index, fill_mode, cval, order)
     return x
 
-def random_streching_z(x, streching_range, row_index=1, col_index=2, dep_index=3, channel_index=0, fill_mode='constant', cval=0., order=0):
+
+def random_streching_z(x, streching_range, row_index=1, col_index=2, dep_index=3, channel_index=0,
+                       fill_mode='constant', cval=0., order=1):
+    # TODO: Different message
     if len(streching_range) != 2:
         raise ValueError('zoom_range should be a tuple or list of two floats. '
                          'Received arg: ', streching_range)
@@ -215,20 +334,42 @@ def transform_matrix_offset_center(matrix, x, y, z):
     transform_matrix = np.dot(np.dot(offset_matrix, matrix), reset_matrix)
     return transform_matrix
 
-def apply_transform(x, transform_matrix, channel_index=0, fill_mode='constant', cval=0., order=0):
+
+def apply_transform(x, transform_matrix, channel_index=0,
+                    fill_mode='constant', cval=0., order=1):
+    # TODO: Documentation
+    """Apply the image transformation specified by a matrix.
+    # Arguments
+        x: 2D numpy array, single image.
+        transform_matrix: Numpy array specifying the geometric transformation.
+        channel_axis: Index of axis for channels in the input tensor.
+        fill_mode: Points outside the boundaries of the input
+            are filled according to the given mode
+            (one of `{'constant', 'nearest', 'reflect', 'wrap'}`).
+        cval: Value used for points outside the boundaries
+            of the input if `mode='constant'`.
+    # Returns
+        The transformed version of the input.
+    """
     x = np.rollaxis(x, channel_index, 0)
     final_affine_matrix = transform_matrix[:3, :3]
     final_offset = transform_matrix[:3, 3]
-    channel_images = [ndi.interpolation.affine_transform(x_channel, final_affine_matrix,
-                      final_offset, order=order, mode=fill_mode, cval=cval) for x_channel in x]
+    channel_images = [ndi.interpolation.affine_transform(
+        x_channel,
+        final_affine_matrix,
+        final_offset,
+        order=order,
+        mode=fill_mode,
+        cval=cval) for x_channel in x]
     x = np.stack(channel_images, axis=0)
-    x = np.rollaxis(x, 0, channel_index+1)
+    x = np.rollaxis(x, 0, channel_index + 1)
     return x
 
 
 def add_gaussian_noise(x, std):
-    x = x + np.random.normal(loc= 0, scale = std, size = x.shape)
+    x = x + np.random.normal(loc=0, scale=std, size=x.shape)
     return x
+
 
 def multiply_value(x, intensity, channel_index=0):
     x = np.rollaxis(x, channel_index, 0)
@@ -237,6 +378,7 @@ def multiply_value(x, intensity, channel_index=0):
     x = np.stack(channel_images, axis=0)
     x = np.rollaxis(x, 0, channel_index + 1)
     return x
+
 
 def adaptive_equalization(x, channel_index=0):
     x = np.rollaxis(x, channel_index, 0)
@@ -249,6 +391,7 @@ def adaptive_equalization(x, channel_index=0):
     x = np.rollaxis(x, 0, channel_index + 1)
     return x
 
+
 def equalize_histogram(x, channel_index=0):
     x = np.rollaxis(x, channel_index, 0)
     x_channel = x[0]
@@ -259,6 +402,7 @@ def equalize_histogram(x, channel_index=0):
     x = np.expand_dims(x_channel, axis=0)
     x = np.rollaxis(x, 0, channel_index + 1)
     return x
+
 
 def contrast_stretching(x, channel_index=0):
     x = np.rollaxis(x, channel_index, 0)
@@ -272,17 +416,19 @@ def contrast_stretching(x, channel_index=0):
     x = np.rollaxis(x, 0, channel_index + 1)
     return x
 
+
 def gaussian_filter(x, sigma=(0.0,1.0), channel_index=0):
     x = np.rollaxis(x, channel_index, 0)
     sigma = np.random.uniform(sigma[0], sigma[1])
     x_channel = x[0]
     orig_shape = x_channel.shape
     x_channel=x_channel.reshape((x_channel.shape[0], -1))
-    x_channel = ndimage.gaussian_filter(x_channel, sigma)
+    x_channel = ndi.gaussian_filter(x_channel, sigma)
     x_channel=x_channel.reshape(orig_shape)
     x = np.expand_dims(x_channel, axis=0)
     x = np.rollaxis(x, 0, channel_index + 1)
     return x
+
 
 def average_filter(x, sigma=(5,5), channel_index=0):
     x = np.rollaxis(x, channel_index, 0)
@@ -294,6 +440,7 @@ def average_filter(x, sigma=(5,5), channel_index=0):
     x = np.expand_dims(x_channel, axis=0)
     x = np.rollaxis(x, 0, channel_index + 1)
     return x
+
 
 def median_filter(x, sigma=5, channel_index=0):
     x = np.rollaxis(x, channel_index, 0)
@@ -309,21 +456,30 @@ def median_filter(x, sigma=5, channel_index=0):
 
 
 class DataGenerator(object):
-    '''Generate minibatches with
-    real-time data augmentation.
+    # TODO: Documentation
+    """Generate minibatches with real-time data augmentation.
+
     # Arguments
         do_ZMUV
-        rotation_range: degrees (0 to 180).
+        rotation_x: degrees (0 to 180).
+        rotation_y: degrees (0 to 180).
+        rotation_z: degrees (0 to 180).
         width_shift_range: fraction of total width.
         height_shift_range: fraction of total height.
-        shear_range: shear intensity (shear angle in radians).
-        zoom_range: amount of zoom. if scalar z, zoom will be randomly picked
-            in the range [1-z, 1+z]. A sequence of two can be passed instead
-            to select this range.
+        depth_shift_range: fraction of total depth.
+        streching_x_range:
+        streching_x_range:
+        streching_x_range:
+        zoom_range:
         channel_shift_range: shift range for each channels.
         fill_mode: points outside the boundaries are filled according to the
             given mode ('constant', 'nearest', 'reflect' or 'wrap'). Default
             is 'nearest'.
+            Points outside the boundaries of the input are filled according to the given mode:
+                'constant': kkkkkkkk|abcd|kkkkkkkk (cval=k)
+                'nearest':  aaaaaaaa|abcd|dddddddd
+                'reflect':  abcddcba|abcd|dcbaabcd
+                'wrap':  abcdabcd|abcd|abcdabcd
         cval: value used for points outside the boundaries when fill_mode is
             'constant'. Default is 0.
         dim_ordering: 'th' or 'tf'. In 'th' mode, the channels dimension
@@ -331,12 +487,17 @@ class DataGenerator(object):
             It defaults to the `image_dim_ordering` value found in your
             Keras config file at `~/.keras/keras.json`.
             If you never set it, then it will be "th".
-    '''
+        order:
+        image_shape:
+        gaussian_noise:
+        eq_prob:
+        contrast_stretching:
+        histogram_equalization:
+        adaptive_equalization:
+
+    """
     def __init__(self,
-                 do_ZMUV=False,
-                 contrast_stretching=False,  #####
-                 histogram_equalization=False,  #####
-                 adaptive_equalization=False,  #####
+                 do_zmuv=False,
                  rotation_x_range=0.,
                  rotation_y_range=0.,
                  rotation_z_range=0.,
@@ -348,27 +509,33 @@ class DataGenerator(object):
                  streching_z_range=0.,
                  zoom_range=0.,
                  channel_shift_range=0.,
-                 gaussian_noise=0.,
-                 eq_prob=0.,
                  fill_mode='constant',
                  cval=0.,
-                 order=0,
+                 order=1,
+                 data_format=None,
                  image_shape=(256, 256, 256),
-                 dim_ordering='default'):
+                 gaussian_noise=0.,
+                 eq_prob=0.,
+                 contrast_stretching=False,  #####
+                 histogram_equalization=False,  #####
+                 adaptive_equalization=False,  #####
+                 ):
 
-        if dim_ordering == 'default':
-            dim_ordering = K.image_dim_ordering()
-        self.__dict__.update(locals())
-        self.zmuv = do_ZMUV
-        self.image_shape = image_shape
-        self.mean = np.zeros((1,) + image_shape, dtype='float32')
-        self.std = np.zeros((1,) + image_shape, dtype='float32')
+        if data_format is None:
+            data_format = K.image_data_format()
+        self.zmuv = do_zmuv
         self.rotation_x_range = rotation_x_range
         self.rotation_y_range = rotation_y_range
         self.rotation_z_range = rotation_z_range
         self.width_shift_range = width_shift_range
         self.height_shift_range = height_shift_range
         self.depth_shift_range = depth_shift_range
+
+        self.image_shape = image_shape
+
+        self.mean = None
+        self.std = None
+
         self.channel_shift_range = channel_shift_range
         self.gaussian_noise = gaussian_noise
         self.eq_prob = eq_prob
@@ -377,21 +544,23 @@ class DataGenerator(object):
         self.order = order
 
 
-        if dim_ordering not in {'tf', 'th'}:
-            raise ValueError('dim_ordering should be "tf" (channel after row and '
-                             'column) or "th" (channel before row and column). '
-                             'Received arg: ', dim_ordering)
-        self.dim_ordering = dim_ordering
-        if dim_ordering == 'th':
-            self.channel_index = 1
-            self.row_index = 2
-            self.col_index = 3
-            self.dep_index = 4
-        if dim_ordering == 'tf':
-            self.channel_index = 4
-            self.row_index = 1
-            self.col_index = 2
-            self.dep_index = 3
+        if data_format not in {'channels_last', 'channels_first'}:
+            raise ValueError('`data_format` should be `"channels_last"` (channel after row and '
+                             'column) or `"channels_first"` (channel before row and column). '
+                             'Received arg: ', data_format)
+        self.data_format = data_format
+        if data_format == 'channels_first':
+            self.channel_axis = 1
+            self.row_axis = 2
+            self.col_axis = 3
+            self.dep_axis = 4
+
+        if data_format == 'channels_last':
+            self.channel_axis = 4
+            self.row_axis = 1
+            self.col_axis = 2
+            self.dep_axis = 3
+
 
         if np.isscalar(zoom_range):
             self.zoom_range = [1 - zoom_range, 1 + zoom_range]
@@ -434,15 +603,21 @@ class DataGenerator(object):
     def flow_from_directory(self, directory,
                             batch_size=32, subject_index=None,
                             nb_class=None,
-                            shuffle=True, seed=None):
+                            shuffle=True, seed=None,
+                            permuted_labels=None):
         return DirectoryIterator(directory, self,
                                  batch_size=batch_size, subject_index=subject_index,
                                  image_shape = (1,) + self.image_shape,
                                  nb_class=nb_class,
+                                 labels_permuted=permuted_labels,
                                  shuffle=shuffle, seed=seed)
 
 
-    def fit(self, directory, subject_index=None, seed=None):
+    def fit(self, directory, subject_index=None):
+        """Fits internal statistics to some sample data.
+        """
+        self.mean = np.zeros((1,) + self.image_shape, dtype=K.floatx())
+        self.std = np.zeros((1,) + self.image_shape, dtype=K.floatx())
 
         nb_train_samples = len(subject_index)
 
@@ -468,8 +643,9 @@ class DataGenerator(object):
 
     def standardize(self, x):
         if self.zmuv:
-            x -= self.mean
-            x /= (self.std + 1e-7)
+            if self.std is not None:
+                x -= self.mean
+                x /= (self.std + 1e-7)
         return x
 
     # https://github.com/aleju/imgaug
@@ -477,43 +653,51 @@ class DataGenerator(object):
     # TODO: Add*, multiply*, AverageBlur*, MedianBlur*, occlusion
 
     def random_transform(self, x):
+        """Randomly augment a single image tensor.
+        # Arguments
+             x: 3D tensor, single image.
+             seed: random seed.
+        # Returns
+             A randomly transformed version of the input (same shape).
+        """
         # x is a single image, so it doesn't have image number at index 0
-        img_row_index = self.row_index - 1
-        img_col_index = self.col_index - 1
-        img_dep_index = self.dep_index - 1
-        img_channel_index = self.channel_index - 1
+        img_row_axis = self.row_axis - 1
+        img_col_axis = self.col_axis - 1
+        img_dep_axis = self.dep_axis - 1
+        img_channel_axis = self.channel_axis - 1
 
         xaxis, yaxis, zaxis = [1, 0, 0], [0, 1, 0], [0, 0, 1]
+
         if self.rotation_x_range:
-            alpha = np.pi / 180 * np.random.uniform(-self.rotation_x_range, self.rotation_x_range)
+            alpha = np.deg2rad(np.random.uniform(-self.rotation_x_range, self.rotation_x_range))
         else:
             alpha = 0
         Rx = rotation_transf_matrix(alpha, xaxis)
 
         if self.rotation_y_range:
-            beta = np.pi / 180 * np.random.uniform(-self.rotation_y_range, self.rotation_x_range)
+            beta = np.deg2rad(np.random.uniform(-self.rotation_y_range, self.rotation_x_range))
         else:
             beta = 0
         Ry = rotation_transf_matrix(beta, yaxis)
 
         if self.rotation_z_range:
-            gamma = np.pi / 180 * np.random.uniform(-self.rotation_z_range, self.rotation_z_range)
+            gamma = np.deg2rad(np.random.uniform(-self.rotation_z_range, self.rotation_z_range))
         else:
             gamma = 0
         Rz = rotation_transf_matrix(gamma, xaxis)
 
         if self.height_shift_range:
-            tx = np.random.uniform(-self.height_shift_range, self.height_shift_range) * x.shape[img_row_index]
+            tx = np.random.uniform(-self.height_shift_range, self.height_shift_range) * x.shape[img_row_axis]
         else:
             tx = 0
 
         if self.width_shift_range:
-            ty = np.random.uniform(-self.width_shift_range, self.width_shift_range) * x.shape[img_col_index]
+            ty = np.random.uniform(-self.width_shift_range, self.width_shift_range) * x.shape[img_col_axis]
         else:
             ty = 0
 
         if self.depth_shift_range:
-            tz = np.random.uniform(-self.depth_shift_range, self.depth_shift_range) * x.shape[img_dep_index]
+            tz = np.random.uniform(-self.depth_shift_range, self.depth_shift_range) * x.shape[img_dep_axis]
         else:
             tz = 0
 
@@ -562,12 +746,12 @@ class DataGenerator(object):
 
         transform_matrix = (np.dot(np.dot(np.dot(np.dot(Rx,Ry),Rz),translation_matrix), scaling_matrix)) #Gimball lock problem
 
-        h, w, d = x.shape[img_row_index], x.shape[img_col_index], x.shape[img_dep_index]
+        h, w, d = x.shape[img_row_axis], x.shape[img_col_axis], x.shape[img_dep_axis]
         transform_matrix = transform_matrix_offset_center(transform_matrix, h, w, d)
-        x = apply_transform(x, transform_matrix, img_channel_index, fill_mode=self.fill_mode, cval=self.cval, order=self.order)
+        x = apply_transform(x, transform_matrix, img_channel_axis, fill_mode=self.fill_mode, cval=self.cval, order=self.order)
 
         if self.channel_shift_range != 0:
-            x = random_channel_shift(x, self.channel_shift_range, img_channel_index)
+            x = random_channel_shift(x, self.channel_shift_range, img_channel_axis)
 
         if self.gaussian_noise != 0:
             x = add_gaussian_noise(x,self.gaussian_noise)
@@ -600,52 +784,108 @@ class DataGenerator(object):
 
 
 class Iterator(object):
+    """Base class for image data iterators.
+    Every `Iterator` must implement the `_get_batches_of_transformed_samples`
+    method.
+    # Arguments
+        n: Integer, total number of samples in the dataset to loop over.
+        batch_size: Integer, size of a batch.
+        shuffle: Boolean, whether to shuffle the data between epochs.
+        seed: Random seeding for data shuffling.
+    """
 
-    def __init__(self, N, batch_size, shuffle, seed):
-        self.N = N
+    def __init__(self, n, batch_size, shuffle, seed):
+        self.n = n
         self.batch_size = batch_size
+        self.seed = seed
         self.shuffle = shuffle
         self.batch_index = 0
         self.total_batches_seen = 0
         self.lock = threading.Lock()
-        self.index_generator = self._flow_index(N, batch_size, shuffle, seed)
+        self.index_array = None
+        self.index_generator = self._flow_index()
+
+    def _set_index_array(self):
+        self.index_array = np.arange(self.n)
+        if self.shuffle:
+            self.index_array = np.random.permutation(self.n)
+
+    def __getitem__(self, idx):
+        if idx >= len(self):
+            raise ValueError('Asked to retrieve element {idx}, '
+                             'but the Sequence '
+                             'has length {length}'.format(idx=idx,
+                                                          length=len(self)))
+        if self.seed is not None:
+            np.random.seed(self.seed + self.total_batches_seen)
+        self.total_batches_seen += 1
+        if self.index_array is None:
+            self._set_index_array()
+        index_array = self.index_array[self.batch_size * idx:
+                                       self.batch_size * (idx + 1)]
+        return self._get_batches_of_transformed_samples(index_array)
+
+    def __len__(self):
+        return (self.n + self.batch_size - 1) // self.batch_size  # round up
+
+    def on_epoch_end(self):
+        self._set_index_array()
 
     def reset(self):
         self.batch_index = 0
 
-    def _flow_index(self, N, batch_size=32, shuffle=False, seed=None):
-        # ensure self.batch_index is 0
+    def _flow_index(self):
+        # Ensure self.batch_index is 0.
         self.reset()
         while 1:
-            if seed is not None:
-                np.random.seed(seed + self.total_batches_seen)
+            if self.seed is not None:
+                np.random.seed(self.seed + self.total_batches_seen)
             if self.batch_index == 0:
-                index_array = np.arange(N)
-                if shuffle:
-                    index_array = np.random.permutation(N)
+                self._set_index_array()
 
-            current_index = (self.batch_index * batch_size) % N
-            if N >= current_index + batch_size:
-                current_batch_size = batch_size
+            current_index = (self.batch_index * self.batch_size) % self.n
+            if self.n > current_index + self.batch_size:
                 self.batch_index += 1
             else:
-                current_batch_size = N - current_index
                 self.batch_index = 0
             self.total_batches_seen += 1
-            yield (index_array[current_index: current_index + current_batch_size],
-                   current_index, current_batch_size)
+            yield self.index_array[current_index:
+                                   current_index + self.batch_size]
 
     def __iter__(self):
-        # needed if we want to do something like:
+        # Needed if we want to do something like:
         # for x, y in data_gen.flow(...):
         return self
 
     def __next__(self, *args, **kwargs):
         return self.next(*args, **kwargs)
 
-class DirectoryIterator(Iterator):
 
-    def __init__(self, directory, image_data_generator, subject_index=None, image_shape=(256, 256, 256), nb_class = None, batch_size=32, shuffle=True, seed=None):
+
+class DirectoryIterator(Iterator):
+    """Iterator capable of reading images from a directory on disk.
+    # Arguments
+        directory: Path to the directory to read images from.
+            Each subdirectory in this directory will be
+            considered to contain images from one class,
+            or alternatively you could specify class subdirectories
+            via the `classes` argument.
+        image_data_generator: Instance of `ImageDataGenerator`
+            to use for random transformations and normalization.
+        subject_index:
+        image_shape:
+        nb_class:
+        batch_size: Integer, size of a batch.
+        shuffle: Boolean, whether to shuffle the data between epochs.
+        seed: Random seed for data shuffling.
+
+    """
+    def __init__(self, directory, image_data_generator,
+                 subject_index=None,
+                 image_shape=(256, 256, 256),
+                 nb_class = None,
+                 labels_permuted=None,
+                 batch_size=32, shuffle=True, seed=None):
         self.directory = directory
         self.image_data_generator = image_data_generator
         self.nb_class = nb_class
@@ -666,23 +906,28 @@ class DirectoryIterator(Iterator):
 
         print('Found %d neuroimages in the directory.' % (self.nb_sample))
 
+        if labels_permuted is not None:
+            self.labels_permuted = labels_permuted
+
         super(DirectoryIterator, self).__init__(self.nb_sample, batch_size, shuffle, seed)
 
-    def next(self):
-        with self.lock:
-            index_array, current_index, current_batch_size = next(self.index_generator)
-        # The transformation of images is not under thread lock so it can be done in parallel
-        batch_x = np.zeros((current_batch_size,) + self.image_shape)
-        batch_y = np.zeros((len(batch_x), self.nb_class), dtype='float32')
+
+    def _get_batches_of_transformed_samples(self, index_array):
+        batch_x = np.zeros((len(index_array),) + self.image_shape, dtype=K.floatx())
+        batch_y = np.zeros((len(batch_x), self.nb_class), dtype=K.floatx())
+
         # build batch of image data
         for i, j in enumerate(index_array):
             fname = self.filenames[self.subject_index[j]]
             img, label = load_img(fname)
+            if self.labels_permuted is not None:
+                label = self.labels_permuted[j]
             img = self.image_data_generator.random_transform(img)
             img = self.image_data_generator.standardize(img)
             batch_x[i] = img
             batch_y[i, label] = 1.
         return batch_x, batch_y
+
 
     def get_labels(self):
         labels = np.zeros((self.nb_sample,))
@@ -691,6 +936,7 @@ class DirectoryIterator(Iterator):
             img, label = load_img(fname)
             labels[i] =label
         return labels
+
 
     def get_names(self):
         fnames = []

@@ -1,7 +1,11 @@
 """
+Performs the permutation test for the CNN method.
 
 """
+from __future__ import absolute_import
+from __future__ import division
 from __future__ import print_function
+
 import sys
 import os
 import imp
@@ -19,15 +23,7 @@ from keras import backend as K
 sys.path.insert(0, './keras_extensions/')
 from preprocessing_neuroimage import DataGenerator
 
-def main(args):
-    config_name = args.config_name
-
-    try:
-        config_module = imp.load_source('config', config_name)
-
-    except IOError:
-        print('Cannot open ', config_name,
-              '. Please specify the correct path of the configuration file. Example: python create_dataset.py ./config/config_test.py')
+def main(config_module):
 
     N_SEED = config_module.N_SEED
     experiment_name = config_module.experiment_name
@@ -88,12 +84,13 @@ def main(args):
             sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
             K.set_session(sess)
 
-            nb_train_samples = len(train_index)
-            nb_test_samples = len(test_index)
+            labels_train, labels_test = permuted_labels[train_index], labels[test_index]
 
-            print("")
+            print("REPETITION :", i_rep + 1)
             print("k-fold: ", i_fold + 1)
             print("")
+
+            # CREATING MODEL ----------------------------------------------------------------------------------------
             print("Building model")
             model = config_module.get_model()
             print(model.summary())
@@ -101,7 +98,7 @@ def main(args):
                           optimizer=config_module.get_optimizer(),
                           metrics=['accuracy'])
 
-            # ----------------------- Training -----------------------
+            #  TRAINING  --------------------------------------------------------------------------------------------
             print("")
             print("Training with %d subjects." % (len(train_index)))
             print("TRAINING")
@@ -125,11 +122,44 @@ def main(args):
                 img_dir,
                 subject_index=train_index,
                 nb_class=nb_classes,
-                batch_size=batch_size)
-            # ----------------------- Testing -----------------------
+                batch_size=batch_size,
+                permuted_labels = labels_train)
 
-            y_predicted = clf.predict(test_x)
-            cm = confusion_matrix(test_y, y_predicted)
+            print("")
+            print("Training with %d neuroimages." % (len(train_index)))
+            print("")
+
+            model.fit_generator(train_generator,
+                                steps_per_epoch=len(train_index)/batch_size,
+                                epochs=nb_epoch)
+
+            # TESTING --------------------------------------------------------------------------------------------------
+            test_datagen = DataGenerator(do_zmuv=do_zmuv,
+                                         rotation_x_range=rotation_x_range,
+                                         rotation_y_range=rotation_y_range,
+                                         rotation_z_range=rotation_z_range,
+                                         streching_x_range=streching_x_range,
+                                         streching_y_range=streching_y_range,
+                                         streching_z_range=streching_z_range,
+                                         width_shift_range=width_shift_range,
+                                         height_shift_range=height_shift_range,
+                                         depth_shift_range=depth_shift_range,
+                                         zoom_range=zoom_range,
+                                         channel_shift_range=channel_shift_range,
+                                         image_shape=image_dimension,
+                                         gaussian_noise=gaussian_noise,
+                                         eq_prob=eq_prob)
+
+            test_generator = test_datagen.flow_from_directory(
+                img_dir,
+                subject_index=test_index,
+                nb_class=nb_classes,
+                batch_size=batch_size)
+
+
+            print("Testing with %d subjects." % (len(test_index)))
+            y_predicted = model.predict_generator(test_generator, float(len(test_index))/float(batch_size))
+            cm = confusion_matrix(labels_test, y_predicted)
 
             test_bac = np.sum(np.true_divide(np.diagonal(cm), np.sum(cm, axis=1))) / cm.shape[1]
             test_sens = np.true_divide(cm[1, 1], np.sum(cm[1, :]))
@@ -171,4 +201,15 @@ if __name__ == '__main__':
     parser.add_argument("config_name", type=str,
                         help="The name of file .py with configurations, e.g., Alexnet")
     args = parser.parse_args()
-    main(args)
+
+    config_name = args.config_name
+
+    try:
+        config_module = imp.load_source('config', config_name)
+
+    except IOError:
+        print('Cannot open ', config_name,
+              '. Please specify the correct path of the configuration file. Example: python create_dataset.py ./config/config_test.py')
+
+
+    main(config_module)
