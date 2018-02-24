@@ -1,4 +1,6 @@
 """
+Train Support Vector Machine Using gridsearch
+
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -16,19 +18,10 @@ from sklearn.model_selection import StratifiedKFold, GridSearchCV
 from sklearn.metrics import confusion_matrix, make_scorer
 from sklearn.externals import joblib
 
-def main(args):
-    config_name = args.config_name
-
-    try:
-        config_module = imp.load_source('config', config_name)
-
-    except IOError:
-        print('Cannot open ', config_name,
-              '. Please specify the correct path of the configuration file. Example: python create_dataset.py ./config/config_test.py')
-
+def main(config_module):
     N_SEED = config_module.N_SEED
     experiment_name = config_module.experiment_name
-    C = [2e3,2e1, 2e-1, 2e-3, 2e-5, 2e-7, 2e-9]
+    C = [2e3, 2e1, 2e-0, 2e-1, 2e-3, 2e-5, 2e-7, 2e-9]
     param_grid = dict(C=C)
     n_folds = config_module.n_folds
 
@@ -46,10 +39,6 @@ def main(args):
     labels = file_npz['labels']
 
     print("")
-    print("Hyperparameters")
-    print("  C: %f" % C)
-    print("")
-    print("")
     print("    Dataset size: %d" % len(data))
     print("")
     print("Stratified K-fold Cross Validation....")
@@ -61,9 +50,6 @@ def main(args):
     cv_error_rate = np.zeros((n_folds,))
 
     skf = StratifiedKFold(n_splits=n_folds, random_state=config_module.N_SEED, shuffle=True)
-
-    accumulated_predicted_class = []
-    accumulated_true_class = []
 
     for i_fold, (train_index, test_index) in enumerate(skf.split(labels, labels)):
         train_y, test_y = labels[train_index], labels[test_index]
@@ -83,7 +69,6 @@ def main(args):
         print("")
 
         print("TRAINING")
-
         def balanced_accuracy_score(actual, prediction):
             cm = confusion_matrix(actual,prediction)
             bac = np.sum(np.true_divide(np.diagonal(cm), np.sum(cm, axis=1))) / cm.shape[1]
@@ -115,7 +100,7 @@ def main(args):
 
         model = svm.SVC(C=best_c, kernel='precomputed')
         model.fit(train_x, train_y)
-        print("Melhor modelo")
+        print("Best model")
         print(model)
 
 
@@ -123,7 +108,7 @@ def main(args):
         print("")
         print("Testing with %d subjects." % (len(test_x)))
 
-        y_predicted = clf.predict(test_x)
+        y_predicted = model.predict(test_x)
         fnames = file_npz['names']
         fnames = fnames[test_index]
 
@@ -131,14 +116,16 @@ def main(args):
             os.makedirs("./results/" + experiment_name + "/SVM/error_analysis/")
 
         if i_fold == 0:
-            file_predictions = open("./results/" + experiment_name + "/SVM/error_analysis/predictions.csv", 'wb')
+            file_predictions = open("./results/" + experiment_name + "/SVM/error_analysis/predictions.csv", 'w')
             wr = csv.writer(file_predictions)
             wr.writerow(['NAME', 'TRUE LABEL', 'PREDICTED'])
         else:
-            file_predictions = open("./results/" + experiment_name + "/SVM/error_analysis/predictions.csv", 'a')
+            file_predictions = open("./results/" + experiment_name + "/SVM/error_analysis/predictions.csv", 'a',
+                                    encoding='utf8')
             wr = csv.writer(file_predictions)
         for j, fname in enumerate(fnames):
-            wr.writerow([(str(fname)).encode('utf-8'),(str(test_y[j])).encode('utf-8'),(str(y_predicted[j])).encode('utf-8')])
+            wr.writerow([str(fname),str(test_y[j]),str(y_predicted[j])])
+        wr.writerow(['-', '-', '-'])
         file_predictions.close()
 
 
@@ -165,7 +152,7 @@ def main(args):
 
         if not os.path.exists("./results/" + experiment_name + "/SVM/models/"):
             os.makedirs("./results/" + experiment_name + "/SVM/models/")
-        joblib.dump(clf, "./results/" + experiment_name + "/SVM/models/model_%d.pkl" % i_fold)
+        joblib.dump(model, "./results/" + experiment_name + "/SVM/models/model_%d.pkl" % i_fold)
 
     print("")
     print("")
@@ -176,12 +163,25 @@ def main(args):
 
     if not os.path.exists("./results/" + experiment_name + "/SVM/summary/"):
         os.makedirs("./results/" + experiment_name + "/SVM/summary/")
-    np.savez("./results/" + experiment_name + "/SVM/summary/cv_results.npz", bac=cv_test_bac, sens=cv_test_sens, spec=cv_test_spec, error_rate = cv_error_rate )
-
+    np.savez("./results/" + experiment_name + "/SVM/summary/cv_results.npz",
+             bac=cv_test_bac, sens=cv_test_sens, spec=cv_test_spec, error_rate=cv_error_rate)
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Script to train model.')
-    parser.add_argument("config_name", type=str, help="The name of file .py with configurations, e.g., ./config/config_test.py")
+    parser.add_argument("config_name", type=str,
+                        help="The name of file .py with configurations, e.g., ./config/config_test.py")
     args = parser.parse_args()
-    main(args)
+
+    config_name = args.config_name
+
+    try:
+        config_module = imp.load_source('config', config_name)
+
+    except IOError:
+        print('Cannot open ', config_name,
+              '. Please specify the correct path of the configuration file.'
+              ' Example: python create_dataset.py ./config/config_test.py')
+
+
+    main(config_module)

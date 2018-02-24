@@ -1,4 +1,5 @@
 """
+Performs the permutation test for the CNN method.
 
 """
 from __future__ import absolute_import
@@ -7,7 +8,6 @@ from __future__ import print_function
 
 import os
 import imp
-import csv
 import random
 import argparse
 import numpy as np
@@ -92,7 +92,8 @@ def main(config_module):
         accumulated_SENS[i_rep] = np.mean(cv_test_sens)
         accumulated_SPEC[i_rep] = np.mean(cv_test_spec)
         accumulated_ERROR[i_rep] = np.mean(cv_error_rate)
-        print("PERMUTATION: ", i_rep + 1, " BAC: ", np.mean(cv_test_bac), ' SENS: ', np.mean(cv_test_sens), ' SPEC: ',np.mean(cv_test_spec) ,' ERROR: ', np.mean(cv_error_rate))
+        print("PERMUTATION: ", i_rep + 1, " BAC: ", np.mean(cv_test_bac),
+              ' SENS: ', np.mean(cv_test_sens), ' SPEC: ',np.mean(cv_test_spec) ,' ERROR: ', np.mean(cv_error_rate))
 
     if not os.path.exists("./results/" + experiment_name + "/SVM/permutation_test/"):
         os.makedirs("./results/" + experiment_name + "/SVM/permutation_test/")
@@ -125,6 +126,7 @@ if __name__ == '__main__':
 
     except IOError:
         print('Cannot open ', config_name,
-              '. Please specify the correct path of the configuration file. Example: python create_dataset.py ./config/config_test.py')
+              '. Please specify the correct path of the configuration file.'
+              ' Example: python create_dataset.py ./config/config_test.py')
 
     main(config_module)

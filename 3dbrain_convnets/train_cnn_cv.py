@@ -2,6 +2,7 @@
 Train Convolution Neural Network.
 
 """
+# TODO: FIX CHANNEL LAST
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -156,7 +157,7 @@ def main(config_module):
                             epochs=nb_epoch,
                             validation_data=test_generator,
                             validation_steps=nb_test_samples/batch_size,
-			                callbacks=[tb],
+                            callbacks=[tb],
                             verbose=1)
 
         # -------------------------- Testing --------------------------------------------
@@ -176,10 +177,11 @@ def main(config_module):
             wr = csv.writer(file_predictions)
             wr.writerow(['NAME', 'TRUE LABEL', 'PREDICTED'])
         else:
-            file_predictions = open("./results/" + experiment_name + "/CNN/error_analysis/predictions.csv", 'a')
+            file_predictions = open("./results/" + experiment_name + "/CNN/error_analysis/predictions.csv", 'a',
+                                    encoding='utf8')
             wr = csv.writer(file_predictions)
         for j, fname in enumerate(fnames):
-            wr.writerow([(str(fname)).encode('utf-8'),(str( y_test[j])).encode('utf-8'),(str((np.argmax(y_predicted, axis=1))[j])).encode('utf-8')])
+            wr.writerow([str(fname),str( y_test[j]),str((np.argmax(y_predicted, axis=1))[j])])
         wr.writerow(['-', '-', '-'])
         file_predictions.close()
 
@@ -209,6 +211,8 @@ def main(config_module):
             os.makedirs("./results/" + experiment_name + "/CNN/models/")
         model.save("./results/" + experiment_name + "/CNN/models/model_%d.h5" % i_fold)
 
+        np.savez("./results/" + experiment_name + "/CNN/models/model_normalization_%d.npz" % i_fold,
+                 mean = train_datagen.mean, std = train_datagen.std)
         tf.reset_default_graph()
 
     print("")
@@ -222,7 +226,7 @@ def main(config_module):
     if not os.path.exists("./results/" + experiment_name + "/CNN/summary/"):
         os.makedirs("./results/" + experiment_name + "/CNN/summary/")
     np.savez("./results/" + experiment_name + "/CNN/summary/cv_results.npz",
-             bac=cv_test_bac, sens=cv_test_sens, spec=cv_test_spec, error_rate = cv_error_rate )
+             bac=cv_test_bac, sens=cv_test_sens, spec=cv_test_spec, error_rate=cv_error_rate)
 
 
 if __name__ == '__main__':

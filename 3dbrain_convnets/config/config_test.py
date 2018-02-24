@@ -1,19 +1,28 @@
 """CONFIGURATION FILE"""
 
-experiment_name = "TEST1"
+experiment_name = "TEST"
 
 path_files = {
-    "raw_images_dir": "./data/PPMI/", # Path to the directory with the raw data (.nii or .img and .hdr). Path used in create_dataset.py.
-    "labels_file": "./data/labels.csv", # Path to the csv with the labels (need to be sorted as the raw data at the directory). Path used in create_dataset.py.
-    "metadata_file": "./data/metadata.csv", # Path to the csv with the metadata (need to be sorted as the raw data at the directory and each column represents one covariate). Path used in create_kernel_with_metadata.py.
-    "mask_file":"" #Path to the file with the binary mask (.nii) Path used in create_dataset.py. Leave it blank ("") if there is no mask.
-    }
+    "raw_images_dir": "./data/PPMI/",  # Path to the directory with the raw data (.nii or .img and .hdr).
+                                       #  Path used in create_dataset.py.
 
+    "labels_file": "./data/labels.csv",  # Path to the csv with the labels
+                                         # (need to be sorted as the raw data at the directory).
+                                         #  Path used in create_dataset.py.
+
+    "metadata_file": "./data/metadata.csv",  # Path to the csv with the metadata
+                                             # (need to be sorted as the raw data at the directory and each column
+                                             #  represents one covariate). Path used in create_kernel_with_metadata.py.
+
+    "mask_file": "" #Path to the file with the binary mask (.nii) Path used in create_dataset.py.
+                    #  Leave it blank ("") if there is no mask.
+    }
+# ./data/mask.nii
 # Type of input data. Specify ".nii" or ".img"
 input_data_type = ".nii"
 
 C = 1
-n_permutations = 1000
+n_permutations = 10
 
 # Perform the zero mean unit variance during the training.
 do_zmuv = True
@@ -21,7 +30,7 @@ do_zmuv = True
 # Define the random seed. This value will affect the random process during the code
 N_SEED = 1
 
-# k-fold cross-validation
+# k-fold cross-validation (n_folds = 10 recommended)
 n_folds = 5
 
 # Size of test set (only in train_one_model)
@@ -68,11 +77,12 @@ def get_model():
 
     # ---------------------------------------- START MODEL ------------------------------------------------------------
     model = Sequential()
-    model.add(Convolution3D(64, (7, 7, 7), strides=(2,2,2),padding = 'valid', activation='relu', input_shape=(img_channels,) + image_dimension))
+    model.add(Convolution3D(64, (7, 7, 7), strides=(2, 2, 2), padding='valid', activation='relu',
+                            input_shape=(img_channels,) + image_dimension))
     model.add(BatchNormalization())
-    model.add(MaxPooling3D(pool_size=(5, 5, 5), strides=(2, 2 , 2)))
+    model.add(MaxPooling3D(pool_size=(5, 5, 5), strides=(2, 2, 2)))
 
-    model.add(Convolution3D(64, (5, 5, 5) ,padding = 'same', activation='relu', kernel_regularizer=l2(0.0001)))
+    model.add(Convolution3D(64, (5, 5, 5), padding='same', activation='relu', kernel_regularizer=l2(0.0001)))
     model.add(BatchNormalization())
     model.add(MaxPooling3D(pool_size=(5, 5, 5), strides=(2, 2, 2)))
 

@@ -10,9 +10,9 @@ import sys
 import os
 import imp
 import csv
-import random
 import argparse
 import numpy as np
+import random as rn
 import tensorflow as tf
 
 from sklearn.model_selection import StratifiedKFold
@@ -24,12 +24,20 @@ sys.path.insert(0, './keras_extensions/')
 from preprocessing_neuroimage import DataGenerator
 
 def main(config_module):
+    # ------------------------------- Reproducibility -----------------------------------------------
+    seed = config_module.N_SEED
+    os.environ['PYTHONHASHSEED'] = '0'
 
-    N_SEED = config_module.N_SEED
+    np.random.seed(seed)
+    rn.seed(seed)
+    tf.set_random_seed(seed)
+
+    session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
+
+    # ------------------------------- Experiment data --------------------------------------------------
     experiment_name = config_module.experiment_name
-    img_dir = "./results/" + experiment_name + "/CNN/img_npz/"
-    paths = config_module.path_files
-    labels_file = paths["labels_file"]
+
+    # ------------------------------- Hiperparameters -------------------------------------------------
     n_folds = config_module.n_folds
     nb_classes = config_module.nb_classes
     batch_size = config_module.batch_size
@@ -37,6 +45,7 @@ def main(config_module):
     image_dimension = config_module.image_dimension
     do_zmuv = config_module.do_zmuv
 
+    # ---------------- Data Augmentation --------------------------------------------
     rotation_x_range = config_module.rotation_x_range
     rotation_y_range = config_module.rotation_y_range
     rotation_z_range = config_module.rotation_z_range
@@ -51,17 +60,14 @@ def main(config_module):
     gaussian_noise = config_module.gaussian_noise
     eq_prob = config_module.eq_prob
 
-    n_permutations=config_module.n_permutations
+    n_permutations = config_module.n_permutations
 
-    os.environ['PYTHONHASHSEED'] = '0'
-    random.seed(N_SEED)
-    np.random.seed(N_SEED)
-
-    session_conf = tf.ConfigProto(intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)
-    tf.set_random_seed(N_SEED)
-
+    # ------------------------------- Loading data --------------------------------------------------
+    img_dir = "./results/" + experiment_name + "/CNN/img_npz/"
     print("Loading data from : ", img_dir)
-    labels = np.genfromtxt(labels_file, delimiter=',', dtype='int8')
+    paths = config_module.path_files
+    labels_file = paths["labels_file"]
+    labels = np.genfromtxt(labels_file, delimiter=',', dtype='int8') #TODO: Change for pandas
 
     accumulated_BAC = np.zeros((n_permutations,))
     accumulated_SENS = np.zeros((n_permutations,))
@@ -69,21 +75,23 @@ def main(config_module):
     accumulated_ERROR = np.zeros((n_permutations,))
 
     for i_rep in range(n_permutations):
-        # CV  VARIABLES -----------------------------------------------------------------------------------------------
+        np.random.seed(config_module.N_SEED + i_rep)
+        permuted_labels = np.random.permutation(labels)
+
+        # ----------------- Cross validation ---------------------------------
+        skf = StratifiedKFold(n_splits=n_folds, random_state=config_module.N_SEED+i_rep, shuffle=True)
+
         cv_test_bac = np.zeros((n_folds,))
         cv_test_sens = np.zeros((n_folds,))
         cv_test_spec = np.zeros((n_folds,))
         cv_error_rate = np.zeros((n_folds,))
 
-        np.random.seed(config_module.N_SEED + i_rep)
-        permuted_labels = np.random.permutation(labels)
-
-        skf = StratifiedKFold(n_splits=n_folds, random_state=config_module.N_SEED+i_rep, shuffle=True)
-
         for i_fold, (train_index, test_index) in enumerate(skf.split(permuted_labels, permuted_labels)):
+            # ------------------------------- Reproducibility -----------------------------------------------
             sess = tf.Session(graph=tf.get_default_graph(), config=session_conf)
             K.set_session(sess)
 
+            # ---------------------------------------------------------------------------------------------
             labels_train, labels_test = permuted_labels[train_index], labels[test_index]
 
             print("REPETITION :", i_rep + 1)
@@ -94,6 +102,8 @@ def main(config_module):
             print("Building model")
             model = config_module.get_model()
             print(model.summary())
+
+            # ------------------------------ Learning algorithm ---------------------------------------------------
             model.compile(loss='categorical_crossentropy',
                           optimizer=config_module.get_optimizer(),
                           metrics=['accuracy'])
@@ -102,7 +112,7 @@ def main(config_module):
             print("")
             print("Training with %d subjects." % (len(train_index)))
             print("TRAINING")
-            train_datagen = DataGenerator(do_ZMUV=do_zmuv,
+            train_datagen = DataGenerator(do_zmuv=do_zmuv,
                                           image_shape=image_dimension,
                                           rotation_x_range=rotation_x_range,
                                           rotation_y_range=rotation_y_range,
@@ -123,43 +133,37 @@ def main(config_module):
                 subject_index=train_index,
                 nb_class=nb_classes,
                 batch_size=batch_size,
-                permuted_labels = labels_train)
+                permuted_labels=labels_train)
 
-            print("")
-            print("Training with %d neuroimages." % (len(train_index)))
-            print("")
-
-            model.fit_generator(train_generator,
-                                steps_per_epoch=len(train_index)/batch_size,
-                                epochs=nb_epoch)
-
-            # TESTING --------------------------------------------------------------------------------------------------
             test_datagen = DataGenerator(do_zmuv=do_zmuv,
-                                         rotation_x_range=rotation_x_range,
-                                         rotation_y_range=rotation_y_range,
-                                         rotation_z_range=rotation_z_range,
-                                         streching_x_range=streching_x_range,
-                                         streching_y_range=streching_y_range,
-                                         streching_z_range=streching_z_range,
-                                         width_shift_range=width_shift_range,
-                                         height_shift_range=height_shift_range,
-                                         depth_shift_range=depth_shift_range,
-                                         zoom_range=zoom_range,
-                                         channel_shift_range=channel_shift_range,
-                                         image_shape=image_dimension,
-                                         gaussian_noise=gaussian_noise,
-                                         eq_prob=eq_prob)
+                                         image_shape=image_dimension)
 
             test_generator = test_datagen.flow_from_directory(
                 img_dir,
                 subject_index=test_index,
                 nb_class=nb_classes,
-                batch_size=batch_size)
+                batch_size=1)
 
+            # ------------------------------- Normalization ------------------------------------------------
+            if do_zmuv:
+                print("")
+                print("Calculating mean and std for ZMUV Normalization...")
+                train_datagen.fit(img_dir, subject_index=train_index)
+                test_datagen.mean = train_datagen.mean
+                test_datagen.std = train_datagen.std
 
+            # ------------------------------ Traning ---------------------------------------------------
+            print("")
+            print("Training with %d neuroimages." % (len(train_index)))
+            print("")
+            model.fit_generator(train_generator,
+                                steps_per_epoch=len(train_index)/batch_size,
+                                epochs=nb_epoch)
+
+            # TESTING --------------------------------------------------------------------------------------------------
             print("Testing with %d subjects." % (len(test_index)))
-            y_predicted = model.predict_generator(test_generator, float(len(test_index))/float(batch_size))
-            cm = confusion_matrix(labels_test, y_predicted)
+            y_predicted = model.predict_generator(test_generator, float(len(test_index)))
+            cm = confusion_matrix(labels_test, np.argmax(y_predicted, axis=1))
 
             test_bac = np.sum(np.true_divide(np.diagonal(cm), np.sum(cm, axis=1))) / cm.shape[1]
             test_sens = np.true_divide(cm[1, 1], np.sum(cm[1, :]))
@@ -175,18 +179,19 @@ def main(config_module):
         accumulated_SENS[i_rep] = np.mean(cv_test_sens)
         accumulated_SPEC[i_rep] = np.mean(cv_test_spec)
         accumulated_ERROR[i_rep] = np.mean(cv_error_rate)
-        print("PERMUTATION: ", i_rep + 1, " BAC: ", np.mean(cv_test_bac), ' SENS: ', np.mean(cv_test_sens), ' SPEC: ',np.mean(cv_test_spec) ,' ERROR: ', np.mean(cv_error_rate))
+        print("PERMUTATION: ", i_rep + 1, " BAC: ", np.mean(cv_test_bac),
+              ' SENS: ', np.mean(cv_test_sens), ' SPEC: ', np.mean(cv_test_spec), ' ERROR: ', np.mean(cv_error_rate))
 
-    if not os.path.exists("./results/" + experiment_name + "/SVM/permutation_test/"):
-        os.makedirs("./results/" + experiment_name + "/SVM/permutation_test/")
-    np.savetxt("./results/" + experiment_name + "/SVM/permutation_test/perm_SVM_bac.csv", np.asarray(accumulated_BAC), delimiter=",")
-    np.savetxt("./results/" + experiment_name + "/SVM/permutation_test/perm_SVM_sens.csv", np.asarray(accumulated_SENS), delimiter=",")
-    np.savetxt("./results/" + experiment_name + "/SVM/permutation_test/perm_SVM_spec.csv", np.asarray(accumulated_SPEC), delimiter=",")
-    np.savetxt("./results/" + experiment_name + "/SVM/permutation_test/perm_SVM_error.csv", np.asarray(accumulated_ERROR), delimiter=",")
+    if not os.path.exists("./results/" + experiment_name + "/CNN/permutation_test/"):
+        os.makedirs("./results/" + experiment_name + "/CNN/permutation_test/")
+    np.savetxt("./results/" + experiment_name + "/CNN/permutation_test/perm_bac.csv", np.asarray(accumulated_BAC), delimiter=",")
+    np.savetxt("./results/" + experiment_name + "/CNN/permutation_test/perm_sens.csv", np.asarray(accumulated_SENS), delimiter=",")
+    np.savetxt("./results/" + experiment_name + "/CNN/permutation_test/perm_spec.csv", np.asarray(accumulated_SPEC), delimiter=",")
+    np.savetxt("./results/" + experiment_name + "/CNN/permutation_test/perm_error.csv", np.asarray(accumulated_ERROR), delimiter=",")
 
     print("")
-    print("Reading CV PERFORMANCE " + python_files)
-    file_npz = np.load("./results/" + experiment_name + "/SVM/summary/cv_results.npz")
+    print("Reading CV PERFORMANCE ")
+    file_npz = np.load("./results/" + experiment_name + "/CNN/summary/cv_results.npz")
     bac = file_npz['bac']
     sens = file_npz['sens']
     spec = file_npz['spec']
@@ -196,6 +201,8 @@ def main(config_module):
     print("SENS P-VALUE", (np.sum((accumulated_SENS > np.mean(sens)).astype('int')) + 1.) / (n_permutations + 1.))
     print("SPEC P-VALUE", (np.sum((accumulated_SPEC > np.mean(spec)).astype('int')) + 1.) / (n_permutations + 1.))
     print("ERROR P-VALUE", (np.sum((accumulated_ERROR < np.mean(error)).astype('int')) + 1.) / (n_permutations + 1.))
+
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Script to train model.')
     parser.add_argument("config_name", type=str,
@@ -209,7 +216,7 @@ if __name__ == '__main__':
 
     except IOError:
         print('Cannot open ', config_name,
-              '. Please specify the correct path of the configuration file. Example: python create_dataset.py ./config/config_test.py')
-
+              '. Please specify the correct path of the configuration file.'
+              ' Example: python create_dataset.py ./config/config_test.py')
 
     main(config_module)

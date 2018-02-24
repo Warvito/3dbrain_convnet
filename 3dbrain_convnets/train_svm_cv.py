@@ -1,4 +1,6 @@
 """
+Train Support Vector Machine.
+
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -16,16 +18,7 @@ from sklearn.model_selection import StratifiedKFold
 from sklearn.metrics import confusion_matrix
 from sklearn.externals import joblib
 
-def main(args):
-    config_name = args.config_name
-
-    try:
-        config_module = imp.load_source('config', config_name)
-
-    except IOError:
-        print('Cannot open ', config_name,
-              '. Please specify the correct path of the configuration file. Example: python create_dataset.py ./config/config_test.py')
-
+def main(config_module):
     N_SEED = config_module.N_SEED
     experiment_name = config_module.experiment_name
     C = config_module.C
@@ -94,14 +87,16 @@ def main(args):
             os.makedirs("./results/" + experiment_name + "/SVM/error_analysis/")
 
         if i_fold == 0:
-            file_predictions = open("./results/" + experiment_name + "/SVM/error_analysis/predictions.csv", 'wb')
+            file_predictions = open("./results/" + experiment_name + "/SVM/error_analysis/predictions.csv", 'w')
             wr = csv.writer(file_predictions)
             wr.writerow(['NAME', 'TRUE LABEL', 'PREDICTED'])
         else:
-            file_predictions = open("./results/" + experiment_name + "/SVM/error_analysis/predictions.csv", 'a')
+            file_predictions = open("./results/" + experiment_name + "/SVM/error_analysis/predictions.csv", 'a',
+                                    encoding='utf8')
             wr = csv.writer(file_predictions)
         for j, fname in enumerate(fnames):
-            wr.writerow([(str(fname)).encode('utf-8'),(str(test_y[j])).encode('utf-8'),(str(y_predicted[j])).encode('utf-8')])
+            wr.writerow([str(fname),str(test_y[j]),str(y_predicted[j])])
+        wr.writerow(['-', '-', '-'])
         file_predictions.close()
 
 
@@ -147,4 +142,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Script to train model.')
     parser.add_argument("config_name", type=str, help="The name of file .py with configurations, e.g., ./config/config_test.py")
     args = parser.parse_args()
-    main(args)
+    config_name = args.config_name
+
+    try:
+        config_module = imp.load_source('config', config_name)
+
+    except IOError:
+        print('Cannot open ', config_name,
+              '. Please specify the correct path of the configuration file. Example: python create_dataset.py ./config/config_test.py')
+
+    main(config_module)

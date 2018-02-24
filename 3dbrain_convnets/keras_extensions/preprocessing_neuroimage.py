@@ -7,31 +7,19 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import numpy as np
-import re
+import os
 import math
+import numpy as np
 from skimage import exposure
 import scipy.ndimage as ndi
-import os
+
 import threading
 import cv2
 
 import keras.backend as K
+from keras.utils.data_utils import Sequence
 
-
-def tryint(s):
-    try:
-        return int(s)
-    except ValueError:
-        return s
-
-
-def alphanum_key(s):
-    return [tryint(c) for c in re.split('([0-9]+)', s)]
-
-
-def sort_nicely(l):
-    return sorted(l, key=alphanum_key)
+from keras_extensions_utils import sort_nicely
 
 
 def load_img(path):
@@ -782,8 +770,7 @@ class DataGenerator(object):
 
         return x
 
-
-class Iterator(object):
+class Iterator(Sequence):
     """Base class for image data iterators.
     Every `Iterator` must implement the `_get_batches_of_transformed_samples`
     method.
@@ -860,6 +847,15 @@ class Iterator(object):
     def __next__(self, *args, **kwargs):
         return self.next(*args, **kwargs)
 
+    def _get_batches_of_transformed_samples(self, index_array):
+        """Gets a batch of transformed samples.
+        # Arguments
+            index_array: array of sample indices to include in batch.
+        # Returns
+            A batch of transformed samples.
+        """
+        raise NotImplementedError
+
 
 
 class DirectoryIterator(Iterator):
@@ -890,6 +886,7 @@ class DirectoryIterator(Iterator):
         self.image_data_generator = image_data_generator
         self.nb_class = nb_class
         self.image_shape = image_shape
+        self.labels_permuted = labels_permuted
 
         # first, count the number of samples and classes
         self.nb_sample = len(subject_index)
@@ -906,11 +903,7 @@ class DirectoryIterator(Iterator):
 
         print('Found %d neuroimages in the directory.' % (self.nb_sample))
 
-        if labels_permuted is not None:
-            self.labels_permuted = labels_permuted
-
         super(DirectoryIterator, self).__init__(self.nb_sample, batch_size, shuffle, seed)
-
 
     def _get_batches_of_transformed_samples(self, index_array):
         batch_x = np.zeros((len(index_array),) + self.image_shape, dtype=K.floatx())
@@ -928,15 +921,13 @@ class DirectoryIterator(Iterator):
             batch_y[i, label] = 1.
         return batch_x, batch_y
 
-
     def get_labels(self):
         labels = np.zeros((self.nb_sample,))
         for i,j in enumerate(self.subject_index):
             fname = self.filenames[j]
             img, label = load_img(fname)
-            labels[i] =label
+            labels[i] = label
         return labels
-
 
     def get_names(self):
         fnames = []

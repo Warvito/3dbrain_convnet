@@ -15,11 +15,10 @@ import numpy as np
 import nibabel as nib
 
 sys.path.insert(0, './keras_extensions/')
-from utils import sort_nicely
+from keras_extensions_utils import sort_nicely
 
 
 def create_npy(config_module):
-
     paths = config_module.path_files
     input_data_type = config_module.input_data_type
     experiment_name = config_module.experiment_name
@@ -27,7 +26,7 @@ def create_npy(config_module):
     data_dir = paths["raw_images_dir"]
     mask_file = paths["mask_file"]
 
-    print("Saving 3d images using .npz format for experiment: ", experiment_name)
+    print("Saving 3D images using .npz format for experiment: ", experiment_name)
 
     save_dir = "./results/" + experiment_name + "/CNN/img_npz/"
     if not os.path.exists(save_dir):
@@ -47,108 +46,49 @@ def create_npy(config_module):
 
     # IF YOU WANT TO REMOVE BLANK VOXELS, UNCOMMENT THIS SECTION
     print("Calculating 3d dimensions to remove blank voxels and reduce the 3d volume.")
-    min_x = 1000
-    max_x = 0
-    min_y = 1000
-    max_y = 0
-    min_z = 1000
-    max_z = 0
 
-    if mask_file is not "":
+    if mask_file:
         mask = nib.load(mask_file)
         mask = mask.get_data()
         mask = np.asarray(mask, dtype='float32')
         mask = np.nan_to_num(mask)
-        mask_shape = mask.shape
 
-        #     X
-        for i in range(0, mask_shape[0]):
-            if np.max(mask[i, :, :]) > 0:
-                break
-        if min_x > i:
-            min_x = i
-
-        for i in range(mask_shape[0] - 1, 0, -1):
-            if np.max(mask[i, :, :]) > 0:
-                break
-        if max_x < i:
-            max_x = i
-
-            #     Y
-        for i in range(0, mask_shape[1]):
-            if np.max(mask[:, i, :]) > 0:
-                break
-        if min_y > i:
-            min_y = i
-
-        for i in range(mask_shape[1] - 1, 0, -1):
-            if np.max(mask[:, i, :]) > 0:
-                break
-        if max_y < i:
-            max_y = i
-
-            #     Z
-        for i in range(0, mask_shape[2]):
-            if np.max(mask[:, :, i]) > 0:
-                break
-        if min_z > i:
-            min_z = i
-
-        for i in range(mask_shape[2] - 1, 0, -1):
-            if np.max(mask[:, :, i]) > 0:
-                break
-        if max_z < i:
-            max_z = i
+        max_x, max_y, max_z, min_x, min_y, min_z = find_image_boundary(mask_file)
 
         print(max_x, max_y, max_z)
         print(min_x, min_y, min_z)
 
     else:
-        for k, path in enumerate(img_paths):
-            img = nib.load(path)
-            img = img.get_data()
-            img = np.asarray(img, dtype='float32')
-            img = np.nan_to_num(img)
-            img_shape = img.shape
+        min_x = 1000
+        max_x = 0
+        min_y = 1000
+        max_y = 0
+        min_z = 1000
+        max_z = 0
 
-        #     X
-            for i in range(0,img_shape[0]):
-                if np.max(img[i,:,:]) > 0:
-                    break
-            if min_x > i:
-                min_x = i
+        for path in img_paths:
+            max_x_img, max_y_img, max_z_img, min_x_img, min_y_img, min_z_img = find_image_boundary(path)
 
-            for i in range(img_shape[0]-1,0,-1):
-                if np.max(img[i,:,:]) > 0:
-                    break
-            if max_x < i:
-                max_x = i
+            # X axis
+            if min_x > min_x_img:
+                min_x = min_x_img
 
-        #     Y
-            for i in range(0,img_shape[1]):
-                if np.max(img[:,i,:]) > 0:
-                    break
-            if min_y > i:
-                min_y = i
+            if max_x < max_x_img:
+                max_x = max_x_img
 
-            for i in range(img_shape[1]-1,0,-1):
-                if np.max(img[:,i,:]) > 0:
-                    break
-            if max_y < i:
-                max_y = i
+            # Y axis
+            if min_y > min_y_img:
+                min_y = min_y_img
 
-        #     Z
-            for i in range(0,img_shape[2]):
-                if np.max(img[:,:,i]) > 0:
-                    break
-            if min_z > i:
-                min_z = i
+            if max_y < max_y_img:
+                max_y = max_y_img
 
-            for i in range(img_shape[2]-1,0,-1):
-                if np.max(img[:,:,i]) > 0:
-                    break
-            if max_z < i:
-                max_z = i
+            # Z axis
+            if min_z > min_z_img:
+                min_z = min_z_img
+
+            if max_z < max_z_img:
+                max_z = max_z_img
 
         print(max_x,max_y,max_z)
         print(min_z,min_y,min_x)
@@ -163,7 +103,7 @@ def create_npy(config_module):
         img = img.get_data()
         img = np.asarray(img, dtype='float32')
         img = np.nan_to_num(img)
-        if mask_file is not "":
+        if mask_file:
             img = np.multiply(img,mask)
         img = img[min_x:max_x,min_y:max_y,min_z:max_z]
         print("{:<5}  {:100s} ({:3}, {:3}, {:3})\t{:}\t{:6.4} - {:6.4}".format((k + 1), os.path.basename(os.path.normpath(path)), img.shape[0], img.shape[1], img.shape[2], labels[k], np.min(img), np.max(img)))
@@ -173,6 +113,67 @@ def create_npy(config_module):
         np.savez(save_dir + f_name, image=img, label=label)
         del img
     print("Done")
+
+
+def find_image_boundary(path):
+    """ Find the limit of blank voxels in one image.
+
+    :param path:
+    :return:
+    """
+    min_x = 1000
+    max_x = 0
+    min_y = 1000
+    max_y = 0
+    min_z = 1000
+    max_z = 0
+
+    img = nib.load(path)
+    img = img.get_data()
+    img = np.asarray(img, dtype='float32')
+    img = np.nan_to_num(img)
+    img_shape = img.shape
+
+    #     X
+    for i in range(0, img_shape[0]):
+        if np.max(img[i, :, :]) > 0:
+            break
+    if min_x > i:
+        min_x = i
+
+    for i in range(img_shape[0] - 1, 0, -1):
+        if np.max(img[i, :, :]) > 0:
+            break
+    if max_x < i:
+        max_x = i
+
+        #     Y
+    for i in range(0, img_shape[1]):
+        if np.max(img[:, i, :]) > 0:
+            break
+    if min_y > i:
+        min_y = i
+
+    for i in range(img_shape[1] - 1, 0, -1):
+        if np.max(img[:, i, :]) > 0:
+            break
+    if max_y < i:
+        max_y = i
+
+        #     Z
+    for i in range(0, img_shape[2]):
+        if np.max(img[:, :, i]) > 0:
+            break
+    if min_z > i:
+        min_z = i
+
+    for i in range(img_shape[2] - 1, 0, -1):
+        if np.max(img[:, :, i]) > 0:
+            break
+    if max_z < i:
+        max_z = i
+
+    return max_x, max_y, max_z, min_x, min_y, min_z
 
 
 if __name__ == '__main__':
@@ -188,6 +189,5 @@ if __name__ == '__main__':
         print('Cannot open ', config_name,
               '. Please specify the correct path of the configuration file. '
               'Example: python create_dataset.py ./config/config_test.py')
-
 
     create_npy(config_module)

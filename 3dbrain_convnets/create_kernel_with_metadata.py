@@ -19,11 +19,10 @@ import pandas as pd
 import nibabel as nib
 
 sys.path.insert(0, './keras_extensions/')
-from utils import sort_nicely
+from keras_extensions_utils import sort_nicely
 
 
 def create_kernel(config_module):
-
     paths = config_module.path_files
     input_data_type = config_module.input_data_type
     experiment_name = config_module.experiment_name
@@ -163,6 +162,7 @@ if __name__ == '__main__':
 
     except IOError:
         print('Cannot open ', config_name,
-              '. Please specify the correct path of the configuration file. Example: python create_dataset.py ./config/config_test.py')
+              '. Please specify the correct path of the configuration file. '
+              'Example: python create_dataset.py ./config/config_test.py')
 
     create_kernel(config_module)
