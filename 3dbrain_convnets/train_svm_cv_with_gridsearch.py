@@ -78,7 +78,8 @@ def main(config_module):
         nested_skf = StratifiedKFold(n_splits=10)
 
         clf = svm.SVC(kernel='precomputed')
-        grid = GridSearchCV(estimator=clf, param_grid=param_grid, scoring = grid_scorer, cv = nested_skf, verbose=1)
+        grid = GridSearchCV(estimator=clf, param_grid=param_grid, scoring = grid_scorer, cv = nested_skf,
+                            verbose=1, pre_dispatch=1)
 
         print("Performing gridSearchCV...")
         grid_result = grid.fit(train_x, train_y)
