@@ -919,7 +919,7 @@ class DirectoryIterator(Iterator):
             img = self.image_data_generator.standardize(img)
             batch_x[i] = img
             batch_y[i, label] = 1.
-        return batch_x, batch_y
+        return batch_x, batch_x
 
     def get_labels(self):
         labels = np.zeros((self.nb_sample,))
