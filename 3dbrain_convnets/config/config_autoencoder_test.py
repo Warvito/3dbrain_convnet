@@ -1,6 +1,6 @@
 """CONFIGURATION FILE"""
 
-experiment_name = "TEST"
+experiment_name = "TEST_AE"
 
 path_files = {
     "raw_images_dir": "./data/PPMI/",  # Path to the directory with the raw data (.nii or .img and .hdr).
@@ -17,12 +17,8 @@ path_files = {
     "mask_file": "" #Path to the file with the binary mask (.nii) Path used in create_dataset.py.
                     #  Leave it blank ("") if there is no mask.
     }
-# ./data/mask.nii
 # Type of input data. Specify ".nii" or ".img"
 input_data_type = ".nii"
-
-C = 1
-n_permutations = 10
 
 # Perform the zero mean unit variance during the training.
 do_zmuv = True
@@ -30,20 +26,11 @@ do_zmuv = True
 # Define the random seed. This value will affect the random process during the code
 N_SEED = 1
 
-# k-fold cross-validation (n_folds = 10 recommended)
-n_folds = 5
-
-# Size of test set (only in train_one_model)
-test_size = 0.4
-
-# Number of classes for classification
-nb_classes = 2
-
 # Minibatch size
 batch_size = 2
 
 # Number of training epochs
-nb_epoch = 20
+nb_epoch = 2
 
 # Dimension of each volume in voxels
 image_dimension = (70, 90, 74)
@@ -68,11 +55,9 @@ gaussian_noise = 0
 eq_prob = 0
 
 def get_autoencoder_model():
-    from keras.layers import Dense, Dropout, Convolution3D, MaxPooling3D, UpSampling3D, GaussianNoise, Cropping3D
+    from keras.layers import Convolution3D, MaxPooling3D, UpSampling3D, GaussianNoise, Cropping3D, Input
     from keras.regularizers import l2
-    from keras.layers import Input, Dense, Convolution2D, MaxPooling2D, UpSampling2D
     from keras.models import Model
-    from keras.models import Sequential
 
     img_channels = 1
     noise_factor = 0.02

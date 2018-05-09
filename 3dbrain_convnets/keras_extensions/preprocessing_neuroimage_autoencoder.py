@@ -589,25 +589,19 @@ class DataGenerator(object):
 
 
     def flow_from_directory(self, directory,
-                            batch_size=32, subject_index=None,
-                            nb_class=None,
-                            shuffle=True, seed=None,
-                            permuted_labels=None):
+                            batch_size=32,
+                            shuffle=True, seed=None):
         return DirectoryIterator(directory, self,
-                                 batch_size=batch_size, subject_index=subject_index,
+                                 batch_size=batch_size,
                                  image_shape = (1,) + self.image_shape,
-                                 nb_class=nb_class,
-                                 labels_permuted=permuted_labels,
                                  shuffle=shuffle, seed=seed)
 
 
     def fit(self, directory, subject_index=None):
-        """Ffitits internal statistics to some sample data.
+        """Fits internal statistics to some sample data.
         """
         self.mean = np.zeros((1,) + self.image_shape, dtype=K.floatx())
         self.std = np.zeros((1,) + self.image_shape, dtype=K.floatx())
-
-        nb_train_samples = len(subject_index)
 
         paths_train = []
         for root, dirs, files in os.walk(directory):
@@ -616,13 +610,15 @@ class DataGenerator(object):
                     paths_train.append(os.path.join(root, file))
         filenames = sort_nicely(paths_train)
 
+        nb_train_samples = len(filenames)
+        self.nb_sample = nb_train_samples
         for i in range(nb_train_samples):
-            fname = filenames[subject_index[i]]
+            fname = filenames[i]
             img, label = load_img(fname)
             self.mean += np.true_divide(img,nb_train_samples)
 
         for i in range(nb_train_samples):
-            fname = filenames[subject_index[i]]
+            fname = filenames[i]
             img, label = load_img(fname)
             self.std += np.true_divide(np.square(img-self.mean),nb_train_samples)
 
@@ -868,30 +864,21 @@ class DirectoryIterator(Iterator):
             via the `classes` argument.
         image_data_generator: Instance of `ImageDataGenerator`
             to use for random transformations and normalization.
-        subject_index:
         image_shape:
-        nb_class:
         batch_size: Integer, size of a batch.
         shuffle: Boolean, whether to shuffle the data between epochs.
         seed: Random seed for data shuffling.
 
     """
     def __init__(self, directory, image_data_generator,
-                 subject_index=None,
                  image_shape=(256, 256, 256),
-                 nb_class = None,
-                 labels_permuted=None,
                  batch_size=32, shuffle=True, seed=None):
         self.directory = directory
         self.image_data_generator = image_data_generator
-        self.nb_class = nb_class
         self.image_shape = image_shape
-        self.labels_permuted = labels_permuted
 
         # first, count the number of samples and classes
-        self.nb_sample = len(subject_index)
         self.filenames = []
-        self.subject_index = subject_index
 
         paths_train = []
         for root, dirs, files in os.walk(directory):
@@ -899,7 +886,9 @@ class DirectoryIterator(Iterator):
                 if file.endswith(".npz"):
                     paths_train.append(os.path.join(root, file))
 
+
         self.filenames = sort_nicely(paths_train)
+        self.nb_sample = len(self.filenames)
 
         print('Found %d neuroimages in the directory.' % (self.nb_sample))
 
@@ -907,30 +896,18 @@ class DirectoryIterator(Iterator):
 
     def _get_batches_of_transformed_samples(self, index_array):
         batch_x = np.zeros((len(index_array),) + self.image_shape, dtype=K.floatx())
-        batch_y = np.zeros((len(batch_x), self.nb_class), dtype=K.floatx())
 
         # build batch of image data
         for i, j in enumerate(index_array):
-            fname = self.filenames[self.subject_index[j]]
+            fname = self.filenames[j]
             img, label = load_img(fname)
-            if self.labels_permuted is not None:
-                label = self.labels_permuted[j]
             img = self.image_data_generator.random_transform(img)
             img = self.image_data_generator.standardize(img)
             batch_x[i] = img
-            batch_y[i, label] = 1.
         return batch_x, batch_x
-
-    def get_labels(self):
-        labels = np.zeros((self.nb_sample,))
-        for i,j in enumerate(self.subject_index):
-            fname = self.filenames[j]
-            img, label = load_img(fname)
-            labels[i] = label
-        return labels
 
     def get_names(self):
         fnames = []
-        for i in self.subject_index:
-            fnames.append(os.path.basename(self.filenames[i]))
+        for name in self.filenames:
+            fnames.append(os.path.basename(name))
         return fnames
