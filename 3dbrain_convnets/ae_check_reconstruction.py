@@ -74,7 +74,7 @@ def main(config_module):
 
     # -------------------------- Testing --------------------------------------------
     print("")
-    img_reconstructed = model.predict(img_normalizada)
+    img_reconstructed = model.predict(np.expand_dims(img_normalizada, axis=0))
 
 
     # -------------------------- Ploting --------------------------------------------
@@ -86,8 +86,8 @@ def main(config_module):
     import matplotlib.pyplot as plt
 
     fig, axes = plt.subplots(1, 2)
-    axes[0].imshow(img[:,np.floor(y_slice/2),:], cmap="gray", origin="lower")
-    axes[1].imshow(img_reconstructed[:, np.floor(y_slice / 2), :], cmap="gray", origin="lower")
+    axes[0].imshow(img[0,:,:,45], cmap="gray", origin="lower")
+    axes[1].imshow(img_reconstructed[0,0,:, :, 45], cmap="gray", origin="lower")
     plt.show()
 
 
