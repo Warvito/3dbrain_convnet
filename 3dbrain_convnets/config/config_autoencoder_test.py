@@ -35,6 +35,8 @@ nb_epoch = 2
 # Dimension of each volume in voxels
 image_dimension = (70, 90, 74)
 
+image_test = "smwc1chinese_100.npz"
+
 # REAL TIME AUGMENTATION PARAMETERS
 # Set everything 0. for no augmentation
 rotation_x_range = 0
